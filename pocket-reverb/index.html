@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pocket Reverb — live guitar reverb</title>
+<style>
+  :root{
+    --bg:#15110e; --panel:#211a15; --edge:#3a2e25; --cream:#efe3cf; --dim:#a8977f;
+    --amber:#f2a541; --red:#e0563b; --green:#7ccf7a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -10%,#2b211a,var(--bg) 60%);
+    color:var(--cream);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    display:flex;justify-content:center;padding:20px}
+  .amp{width:100%;max-width:440px}
+  h1{font-family:Georgia,serif;font-style:italic;font-weight:normal;font-size:30px;margin:4px 0 2px;letter-spacing:.5px}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:18px}
+  .panel{background:var(--panel);border:1px solid var(--edge);border-radius:16px;padding:18px;margin-bottom:14px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+  #power{width:100%;padding:18px;border-radius:14px;border:2px solid var(--amber);background:transparent;
+    color:var(--amber);font-size:18px;font-weight:600;letter-spacing:1px;cursor:pointer}
+  #power.on{background:var(--amber);color:#1a120b;box-shadow:0 0 28px rgba(242,165,65,.45)}
+  .status{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-top:10px}
+  .lamp{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4a3b30;margin-right:6px;vertical-align:middle}
+  .lamp.on{background:var(--red);box-shadow:0 0 8px var(--red)}
+  .meter{height:8px;border-radius:4px;background:#0f0c0a;overflow:hidden;margin-top:12px}
+  .meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--amber) 70%,var(--red));transition:width .05s}
+  .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .presets button{padding:10px 4px;border-radius:10px;border:1px solid var(--edge);background:#1a1410;color:var(--cream);font-size:13px;cursor:pointer}
+  .presets button.active{border-color:var(--amber);color:var(--amber)}
+  .ctl{margin:14px 0 4px}
+  .ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--dim);margin-bottom:6px}
+  .ctl label b{color:var(--cream);font-weight:500}
+  input[type=range]{width:100%;accent-color:var(--amber)}
+  .row{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:var(--dim);margin-top:14px}
+  .note{font-size:12px;color:var(--dim);line-height:1.5}
+  .note b{color:var(--amber);font-weight:500}
+  .err{color:var(--red);font-size:13px;margin-top:10px;display:none}
+  .sec{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
+</style>
+</head>
+<body>
+<div class="amp">
+  <h1>Pocket Reverb</h1>
+  <div class="sub">Play into your mic. Hear the room grow.</div>
+
+  <div class="panel">
+    <button id="power">▶ START</button>
+    <div class="status">
+      <span><span class="lamp" id="lamp"></span><span id="stateTxt">Off</span></span>
+      <span id="latency">latency —</span>
+    </div>
+    <div class="meter"><i id="meter"></i></div>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="panel">
+    <div class="sec">Presets</div>
+    <div class="presets" id="presets"></div>
+  </div>
+
+  <div class="panel">
+    <div class="sec">Reverb</div>
+    <div class="ctl"><label>Mix <b id="mixV"></b></label><input id="mix" type="range" min="0" max="100"></div>
+    <div class="ctl"><label>Decay <b id="decayV"></b></label><input id="decay" type="range" min="3" max="80"></div>
+    <div class="ctl"><label>Pre-delay <b id="preV"></b></label><input id="pre" type="range" min="0" max="120"></div>
+    <div class="ctl"><label>Tone <b id="toneV"></b></label><input id="tone" type="range" min="1500" max="12000" step="100"></div>
+  </div>
+
+  <div class="panel">
+    <div class="sec">Echo</div>
+    <div class="ctl"><label>Echo level <b id="echoV"></b></label><input id="echo" type="range" min="0" max="100"></div>
+    <div class="ctl"><label>Echo time <b id="timeV"></b></label><input id="time" type="range" min="60" max="900"></div>
+    <div class="ctl"><label>Repeats <b id="fbV"></b></label><input id="fb" type="range" min="0" max="85"></div>
+  </div>
+
+  <div class="panel">
+    <div class="sec">Input</div>
+    <div class="ctl"><label>Mic gain <b id="gainV"></b></label><input id="gain" type="range" min="0" max="300"></div>
+    <div class="row"><span>Hear dry signal too<br><small>(for electric guitar via interface)</small></span><input id="dry" type="checkbox"></div>
+  </div>
+
+  <div class="panel note">
+    <b>Use headphones.</b> With speakers, the mic hears the reverb and it can howl.<br>
+    Acoustic guitar: keep “dry” off — you already hear the real guitar, the app adds only the space around it.<br>
+    Wired headphones are best; Bluetooth adds a noticeable delay.
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const PRESETS = {
+  "Room":      {mix:35, decay:8,  pre:5,   tone:7000,  echo:0,  time:120, fb:0},
+  "Hall":      {mix:45, decay:28, pre:25,  tone:6500,  echo:0,  time:300, fb:0},
+  "Cathedral": {mix:55, decay:60, pre:45,  tone:5000,  echo:10, time:420, fb:30},
+  "Plate":     {mix:40, decay:18, pre:0,   tone:10000, echo:0,  time:200, fb:0},
+  "Slapback":  {mix:15, decay:6,  pre:0,   tone:6000,  echo:55, time:110, fb:10},
+  "Ambient":   {mix:60, decay:75, pre:60,  tone:4500,  echo:35, time:600, fb:55},
+};
+let state = {...PRESETS.Hall, gain:100, dry:false};
+let ctx, stream, nodes = {}, irTimer, raf;
+
+/* ---------- impulse response: decaying stereo noise ---------- */
+function buildIR(seconds){
+  const rate = ctx.sampleRate, len = Math.max(1, Math.floor(rate*seconds));
+  const ir = ctx.createBuffer(2, len, rate);
+  for(let ch=0; ch<2; ch++){
+    const d = ir.getChannelData(ch);
+    for(let i=0;i<len;i++){
+      const t = i/len;
+      d[i] = (Math.random()*2-1) * Math.pow(1-t, 3.2);
+    }
+  }
+  return ir;
+}
+function refreshIR(){
+  clearTimeout(irTimer);
+  irTimer = setTimeout(()=>{ if(ctx) nodes.conv.buffer = buildIR(state.decay/10); }, 120);
+}
+
+/* ---------- audio graph ---------- */
+async function start(){
+  $('err').style.display='none';
+  try{
+    ctx = new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
+    stream = await navigator.mediaDevices.getUserMedia({audio:{
+      echoCancellation:false, noiseSuppression:false, autoGainControl:false, latency:0
+    }});
+  }catch(e){
+    showErr(e.name==='NotAllowedError' ? 'Microphone permission was blocked. Allow it in the browser and try again.'
+          : 'Could not open the microphone: '+e.message);
+    stop(); return;
+  }
+  const src = ctx.createMediaStreamSource(stream);
+  const n = nodes;
+  n.gain = ctx.createGain();
+  n.hp = ctx.createBiquadFilter(); n.hp.type='highpass'; n.hp.frequency.value=80;
+  n.analyser = ctx.createAnalyser(); n.analyser.fftSize=512;
+  n.dry = ctx.createGain();
+  n.pre = ctx.createDelay(0.5);
+  n.conv = ctx.createConvolver(); n.conv.buffer = buildIR(state.decay/10);
+  n.tone = ctx.createBiquadFilter(); n.tone.type='lowpass';
+  n.wet = ctx.createGain();
+  n.echoDelay = ctx.createDelay(2);
+  n.echoFb = ctx.createGain();
+  n.echoTone = ctx.createBiquadFilter(); n.echoTone.type='lowpass'; n.echoTone.frequency.value=3500;
+  n.echoOut = ctx.createGain();
+  n.limiter = ctx.createDynamicsCompressor();
+  n.limiter.threshold.value=-10; n.limiter.ratio.value=12; n.limiter.attack.value=0.003; n.limiter.release.value=0.2;
+
+  src.connect(n.gain); n.gain.connect(n.hp); n.hp.connect(n.analyser);
+  n.hp.connect(n.dry); n.dry.connect(n.limiter);
+  n.hp.connect(n.pre); n.pre.connect(n.conv); n.conv.connect(n.tone); n.tone.connect(n.wet); n.wet.connect(n.limiter);
+  n.hp.connect(n.echoDelay); n.echoDelay.connect(n.echoTone); n.echoTone.connect(n.echoFb); n.echoFb.connect(n.echoDelay);
+  n.echoTone.connect(n.echoOut); n.echoOut.connect(n.limiter);
+  n.echoOut.connect(n.pre); // echoes get reverb too
+  n.limiter.connect(ctx.destination);
+
+  applyAll();
+  $('power').classList.add('on'); $('power').textContent='■ STOP';
+  $('lamp').classList.add('on'); $('stateTxt').textContent='Listening';
+  const lat = ((ctx.baseLatency||0)+(ctx.outputLatency||0))*1000;
+  $('latency').textContent = lat ? `latency ~${Math.round(lat)} ms` : 'latency n/a';
+  meterLoop();
+}
+function stop(){
+  cancelAnimationFrame(raf);
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  if(ctx) ctx.close();
+  ctx=null; stream=null; nodes={};
+  $('power').classList.remove('on'); $('power').textContent='▶ START';
+  $('lamp').classList.remove('on'); $('stateTxt').textContent='Off';
+  $('meter').style.width='0'; $('latency').textContent='latency —';
+}
+function showErr(m){ $('err').textContent=m; $('err').style.display='block'; }
+
+function meterLoop(){
+  const buf = new Float32Array(nodes.analyser.fftSize);
+  const tick = ()=>{
+    if(!nodes.analyser) return;
+    nodes.analyser.getFloatTimeDomainData(buf);
+    let peak=0; for(const v of buf) peak=Math.max(peak,Math.abs(v));
+    $('meter').style.width = Math.min(100, peak*140)+'%';
+    raf = requestAnimationFrame(tick);
+  };
+  tick();
+}
+
+/* ---------- controls ---------- */
+const ramp = (param,v)=>{ if(ctx) param.setTargetAtTime(v, ctx.currentTime, 0.03); };
+function applyAll(){
+  const s=state, n=nodes;
+  $('mixV').textContent=s.mix+'%';
+  $('decayV').textContent=(s.decay/10).toFixed(1)+' s';
+  $('preV').textContent=s.pre+' ms';
+  $('toneV').textContent=(s.tone/1000).toFixed(1)+' kHz';
+  $('echoV').textContent=s.echo+'%';
+  $('timeV').textContent=s.time+' ms';
+  $('fbV').textContent=s.fb+'%';
+  $('gainV').textContent=s.gain+'%';
+  for(const k of ['mix','decay','pre','tone','echo','time','fb','gain']) $(k).value=s[k];
+  $('dry').checked=s.dry;
+  if(!ctx) return;
+  ramp(n.gain.gain, s.gain/100);
+  ramp(n.wet.gain, (s.mix/100)*1.6);
+  ramp(n.pre.delayTime, s.pre/1000);
+  ramp(n.tone.frequency, s.tone);
+  ramp(n.echoOut.gain, s.echo/100);
+  ramp(n.echoDelay.delayTime, s.time/1000);
+  ramp(n.echoFb.gain, s.fb/100);
+  ramp(n.dry.gain, s.dry?1:0);
+}
+for(const k of ['mix','pre','tone','echo','time','fb','gain']){
+  $(k).addEventListener('input', e=>{ state[k]=+e.target.value; clearPreset(); applyAll(); });
+}
+$('decay').addEventListener('input', e=>{ state.decay=+e.target.value; clearPreset(); applyAll(); refreshIR(); });
+$('dry').addEventListener('change', e=>{ state.dry=e.target.checked; applyAll(); });
+$('power').addEventListener('click', ()=> ctx ? stop() : start());
+
+const pbox=$('presets');
+for(const name of Object.keys(PRESETS)){
+  const b=document.createElement('button'); b.textContent=name;
+  b.onclick=()=>{
+    const oldDecay=state.decay;
+    Object.assign(state, PRESETS[name]);
+    [...pbox.children].forEach(x=>x.classList.toggle('active', x===b));
+    applyAll(); if(state.decay!==oldDecay) refreshIR();
+  };
+  if(name==='Hall') b.classList.add('active');
+  pbox.appendChild(b);
+}
+function clearPreset(){ [...pbox.children].forEach(x=>x.classList.remove('active')); }
+applyAll();
+</script>
+</body>
+</html>
