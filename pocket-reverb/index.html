@@ -37,6 +37,9 @@
   .note{font-size:12px;color:var(--dim);line-height:1.5}
   .note b{color:var(--amber);font-weight:500}
   .err{color:var(--red);font-size:13px;margin-top:10px;display:none}
+  select{width:100%;padding:10px;border-radius:10px;background:#1a1410;color:var(--cream);border:1px solid var(--edge);font-size:14px}
+  button.small{width:100%;margin-top:12px;padding:11px;border-radius:10px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-size:14px;cursor:pointer}
+  button.small:disabled{opacity:.5}
   .sec{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:10px}
 </style>
 </head>
@@ -77,11 +80,17 @@
 
   <div class="panel">
     <div class="sec">Input</div>
+    <div class="ctl"><label>Microphone</label>
+      <select id="mic"><option value="">Default (tap START first to list mics)</option></select></div>
     <div class="ctl"><label>Mic gain <b id="gainV"></b></label><input id="gain" type="range" min="0" max="300"></div>
+    <div class="ctl"><label>Noise gate <span><span class="lamp" id="gateLamp"></span><b id="gateV"></b></span></label><input id="gate" type="range" min="0" max="100"></div>
+    <button id="learn" class="small">Learn room noise (stay quiet 2 s)</button>
+    <div class="row"><span>Guitar focus<br><small>(cuts rumble and hiss outside guitar range)</small></span><input id="focus" type="checkbox"></div>
     <div class="row"><span>Hear dry signal too<br><small>(for electric guitar via interface)</small></span><input id="dry" type="checkbox"></div>
   </div>
 
   <div class="panel note">
+    <b>AirPods tip:</b> when AirPods are connected, the iPhone uses the AirPods’ mic — it sits at your ears, far from the guitar, so room noise wins. Pick <b>iPhone Microphone</b> above (if listed) and place the phone near the soundhole. Wired earphones work best.<br>
     <b>Use headphones.</b> With speakers, the mic hears the reverb and it can howl.<br>
     Acoustic guitar: keep “dry” off — you already hear the real guitar, the app adds only the space around it.<br>
     Wired headphones are best; Bluetooth adds a noticeable delay.
@@ -98,8 +107,44 @@ const PRESETS = {
   "Slapback":  {mix:15, decay:6,  pre:0,   tone:6000,  echo:55, time:110, fb:10},
   "Ambient":   {mix:60, decay:75, pre:60,  tone:4500,  echo:35, time:600, fb:55},
 };
-let state = {...PRESETS.Hall, gain:100, dry:false};
-let ctx, stream, nodes = {}, irTimer, raf;
+let state = {...PRESETS.Hall, gain:100, dry:false, gate:25, focus:true, mic:''};
+let ctx, stream, nodes = {}, irTimer, raf, learning = null;
+const gateThresh = v => Math.pow(v/100, 2) * 0.4;   // slider 0–100 → linear amplitude
+
+/* noise gate: passes sound only while it's louder than the threshold */
+const GATE_SRC = `
+class Gate extends AudioWorkletProcessor{
+  static get parameterDescriptors(){return [{name:'threshold',defaultValue:0.025,minValue:0,maxValue:1}];}
+  constructor(){super();this.env=0;this.g=0;this.hold=0;}
+  process(ins,outs,p){
+    const inp=ins[0], out=outs[0]; if(!inp||!inp.length) return true;
+    const th=p.threshold[0], n=inp[0].length, sr=sampleRate;
+    const atk=1-Math.exp(-1/(sr*0.002)), rel=1-Math.exp(-1/(sr*0.12)), er=1-Math.exp(-1/(sr*0.02));
+    for(let i=0;i<n;i++){
+      let pk=0; for(let c=0;c<inp.length;c++) pk=Math.max(pk,Math.abs(inp[c][i]));
+      this.env = pk>this.env ? pk : this.env+(pk-this.env)*er;
+      if(this.env>th) this.hold=sr*0.1; else if(this.hold>0) this.hold--;
+      const t=(this.env>th||this.hold>0)?1:0;
+      this.g += (t-this.g)*(t>this.g?atk:rel);
+      for(let c=0;c<out.length;c++) out[c][i]=(inp[c]||inp[0])[i]*this.g;
+    }
+    return true;
+  }
+}
+registerProcessor('gate',Gate);`;
+
+async function listMics(){
+  try{
+    const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput');
+    const sel=$('mic'); sel.innerHTML='';
+    devs.forEach((d,i)=>{
+      const o=document.createElement('option'); o.value=d.deviceId;
+      o.textContent=d.label||('Microphone '+(i+1)); sel.appendChild(o);
+    });
+    const cur = stream && stream.getAudioTracks()[0].getSettings().deviceId;
+    if(cur) sel.value=cur;
+  }catch(e){}
+}
 
 /* ---------- impulse response: decaying stereo noise ---------- */
 function buildIR(seconds){
@@ -125,7 +170,8 @@ async function start(){
   try{
     ctx = new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
     stream = await navigator.mediaDevices.getUserMedia({audio:{
-      echoCancellation:false, noiseSuppression:false, autoGainControl:false, latency:0
+      echoCancellation:false, noiseSuppression:false, autoGainControl:false, latency:0,
+      ...(state.mic ? {deviceId:{exact:state.mic}} : {})
     }});
   }catch(e){
     showErr(e.name==='NotAllowedError' ? 'Microphone permission was blocked. Allow it in the browser and try again.'
@@ -149,10 +195,18 @@ async function start(){
   n.limiter = ctx.createDynamicsCompressor();
   n.limiter.threshold.value=-10; n.limiter.ratio.value=12; n.limiter.attack.value=0.003; n.limiter.release.value=0.2;
 
-  src.connect(n.gain); n.gain.connect(n.hp); n.hp.connect(n.analyser);
-  n.hp.connect(n.dry); n.dry.connect(n.limiter);
-  n.hp.connect(n.pre); n.pre.connect(n.conv); n.conv.connect(n.tone); n.tone.connect(n.wet); n.wet.connect(n.limiter);
-  n.hp.connect(n.echoDelay); n.echoDelay.connect(n.echoTone); n.echoTone.connect(n.echoFb); n.echoFb.connect(n.echoDelay);
+  n.lp = ctx.createBiquadFilter(); n.lp.type='lowpass'; n.lp.Q.value=0.5;
+  try{
+    const url = URL.createObjectURL(new Blob([GATE_SRC],{type:'application/javascript'}));
+    await ctx.audioWorklet.addModule(url);
+    n.gateNode = new AudioWorkletNode(ctx,'gate',{outputChannelCount:[1]});
+  }catch(e){ n.gateNode = ctx.createGain(); n.noGate=true; }
+
+  src.connect(n.gain); n.gain.connect(n.hp); n.hp.connect(n.lp); n.lp.connect(n.analyser);
+  n.lp.connect(n.gateNode); const g = n.gateNode;
+  g.connect(n.dry); n.dry.connect(n.limiter);
+  g.connect(n.pre); n.pre.connect(n.conv); n.conv.connect(n.tone); n.tone.connect(n.wet); n.wet.connect(n.limiter);
+  g.connect(n.echoDelay); n.echoDelay.connect(n.echoTone); n.echoTone.connect(n.echoFb); n.echoFb.connect(n.echoDelay);
   n.echoTone.connect(n.echoOut); n.echoOut.connect(n.limiter);
   n.echoOut.connect(n.pre); // echoes get reverb too
   n.limiter.connect(ctx.destination);
@@ -162,6 +216,8 @@ async function start(){
   $('lamp').classList.add('on'); $('stateTxt').textContent='Listening';
   const lat = ((ctx.baseLatency||0)+(ctx.outputLatency||0))*1000;
   $('latency').textContent = lat ? `latency ~${Math.round(lat)} ms` : 'latency n/a';
+  if(n.noGate) showErr('Noise gate not supported in this browser — update iOS/Safari.');
+  listMics();
   meterLoop();
 }
 function stop(){
@@ -182,6 +238,8 @@ function meterLoop(){
     nodes.analyser.getFloatTimeDomainData(buf);
     let peak=0; for(const v of buf) peak=Math.max(peak,Math.abs(v));
     $('meter').style.width = Math.min(100, peak*140)+'%';
+    $('gateLamp').classList.toggle('on', peak > gateThresh(state.gate));
+    if(learning){ learning.max=Math.max(learning.max,peak); }
     raf = requestAnimationFrame(tick);
   };
   tick();
@@ -199,9 +257,13 @@ function applyAll(){
   $('timeV').textContent=s.time+' ms';
   $('fbV').textContent=s.fb+'%';
   $('gainV').textContent=s.gain+'%';
-  for(const k of ['mix','decay','pre','tone','echo','time','fb','gain']) $(k).value=s[k];
-  $('dry').checked=s.dry;
+  $('gateV').textContent=s.gate? s.gate+'%' : 'off';
+  for(const k of ['mix','decay','pre','tone','echo','time','fb','gain','gate']) $(k).value=s[k];
+  $('dry').checked=s.dry; $('focus').checked=s.focus;
   if(!ctx) return;
+  if(!n.noGate) ramp(n.gateNode.parameters.get('threshold'), gateThresh(s.gate));
+  ramp(n.hp.frequency, s.focus?90:40);
+  ramp(n.lp.frequency, s.focus?6500:20000);
   ramp(n.gain.gain, s.gain/100);
   ramp(n.wet.gain, (s.mix/100)*1.6);
   ramp(n.pre.delayTime, s.pre/1000);
@@ -216,6 +278,24 @@ for(const k of ['mix','pre','tone','echo','time','fb','gain']){
 }
 $('decay').addEventListener('input', e=>{ state.decay=+e.target.value; clearPreset(); applyAll(); refreshIR(); });
 $('dry').addEventListener('change', e=>{ state.dry=e.target.checked; applyAll(); });
+$('focus').addEventListener('change', e=>{ state.focus=e.target.checked; applyAll(); });
+$('gate').addEventListener('input', e=>{ state.gate=+e.target.value; applyAll(); });
+$('mic').addEventListener('change', async e=>{
+  state.mic=e.target.value;
+  if(ctx){ stop(); await start(); }
+});
+$('learn').addEventListener('click', ()=>{
+  if(!ctx){ showErr('Tap START first, then Learn.'); return; }
+  const b=$('learn'); b.disabled=true; b.textContent='Listening… stay quiet';
+  learning={max:0};
+  setTimeout(()=>{
+    // set the gate a bit above the loudest background noise heard
+    const t = Math.min(0.4, Math.max(0.004, learning.max*1.6));
+    state.gate = Math.min(100, Math.round(Math.sqrt(t/0.4)*100));
+    learning=null; b.disabled=false; b.textContent='Learn room noise (stay quiet 2 s)';
+    applyAll();
+  }, 2000);
+});
 $('power').addEventListener('click', ()=> ctx ? stop() : start());
 
 const pbox=$('presets');
