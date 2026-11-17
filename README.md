@@ -34,6 +34,8 @@ Open the **Beam** tab on both devices (same Wi-Fi).
 2. Your phone shows a code back. On the computer tap **Step 2** and hold the phone up to its camera.
 3. Connected! On the phone, pick a file and **flick your phone** (or swipe the card up). On the computer, **drag a file up** to throw it to the phone.
 
+To send a link, tap **Send a link** (or paste one on the computer). The other device asks before opening it in a new tab.
+
 Received files stay in the Beam tab, ready to open or download. Files go straight between the two devices, encrypted, and never through a server.
 
 ## Keep your files safe
