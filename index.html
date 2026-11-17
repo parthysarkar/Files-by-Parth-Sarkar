@@ -598,6 +598,7 @@ transition:transform .7s cubic-bezier(.2,.8,.2,1);transform-origin:50% 50%;backf
 .bmsg span{font-size:13px;opacity:.75}
 .borb{width:90px;height:40px;border-radius:50%;background:radial-gradient(closest-side,rgba(160,200,255,.9),rgba(120,120,255,.35) 60%,transparent);filter:blur(6px);animation:borb 2.4s ease-in-out infinite}
 @keyframes borb{50%{transform:scale(1.25);opacity:.7}}
+.bask{position:absolute;inset:0;z-index:35;display:grid;place-items:center;padding:20px;background:rgba(10,6,35,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .bdone{flex:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
 .bphone.sent .bcw,.bphone.sent .bmsg,.bphone.sent .bacts,.bphone.sent .bstrip{display:none}
 .bphone.sent .bdone{display:flex}
@@ -2295,7 +2296,8 @@ bv.innerHTML=`<div class="bvbg"></div>
     <div class="bmsg"><b id="bmt">Give it a little flick.</b><span id="bmsub">Flick your phone or swipe up with a finger.</span></div>
     <div class="bacts"><button type="button" id="bpick">Choose files</button><button type="button" id="bgo">Beam it ↑</button><button type="button" id="bmot" hidden>Turn on flick</button></div>
     <div class="bstrip" id="bstrip"></div>
-    <div class="bdone"><i class="borb"></i><b>A little magic, delivered.</b><span id="bdto"></span><button type="button" id="bback">Back to collection</button></div>
+    <div class="bask" id="bask" hidden><div class="bpc"><div class="bpt">Flick to send</div><div class="bps">Allow motion so a quick flick of your phone sends the file to the other screen.</div><div class="bbtns"><button type="button" class="pri" id="baskok">Turn on flick</button><button type="button" id="baskno">Not now</button></div></div></div>
+    <div class="bdone"><i class="borb"></i><b>Transfer complete.</b><span id="bdto"></span><button type="button" id="bback">Back to collection</button></div>
   </div>
   <div class="bdrop" id="bdrop" hidden><div class="bprog"><i></i></div><div class="bfrom"></div></div>
 </div>
@@ -2324,7 +2326,7 @@ function whoosh(up){
   const g=ac.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.42,t+.1);g.gain.exponentialRampToValueAtTime(.0005,t+.5);
   src.connect(bp);bp.connect(g);g.connect(master);src.start(t);src.stop(t+.55);
 }
-let statT=0;function bStatus(m,keep){bstat.textContent=m;bstat.classList.add('on');clearTimeout(statT);if(!keep)statT=setTimeout(()=>bstat.classList.remove('on'),2400)}
+let statT=0;function bStatus(m,keep){const hd=bv.querySelector('.bhead');if(hd)bstat.style.top=(hd.offsetTop+hd.offsetHeight+8)+'px';bstat.textContent=m;bstat.classList.add('on');clearTimeout(statT);if(!keep)statT=setTimeout(()=>bstat.classList.remove('on'),2400)}
 // ---- tabs ----
 let beamPrev='tray';
 function placeBeam(){const b=document.querySelector('.bar'),l=document.querySelector('.legal');bv.style.setProperty('--bvt',(b?b.getBoundingClientRect().bottom:60)+'px');bv.style.setProperty('--bvb',(l?l.offsetHeight:0)+'px')}
@@ -2357,9 +2359,9 @@ function pairHome(msg){
     IS_PHONE?'Tip: tap Show my code on your computer and scan it with your phone’s camera app.':'Tip: tap Show my code here, then scan it with your phone’s camera app.');
 }
 function spinStep(text){return s=>{el('bspin',s);el('bline',s).textContent=text}}
-function qrStep(text,line){return s=>{const w=el('bqr',s);const cv=el('',w,'canvas');drawQR(cv,text);const n=Math.min(300,innerWidth-110);w.style.width=n+'px';const p=el('bline',s);p.innerHTML=line}}
-function drawQR(cv,text){
-  const q=qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount(),s=Math.max(4,Math.floor(640/n));
+function qrStep(text,line,big){return s=>{const w=el('bqr',s);const cv=el('',w,'canvas');drawQR(cv,text,big?'L':'M');const n=big?Math.min(380,innerWidth-100,innerHeight-300):Math.min(300,innerWidth-110);w.style.width=n+'px';const p=el('bline',s);p.innerHTML=line}}
+function drawQR(cv,text,lvl){
+  const q=qrcode(0,lvl||'M');q.addData(text);q.make();const n=q.getModuleCount(),s=Math.max(4,Math.floor(640/n));
   cv.width=cv.height=n*s;const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,n*s,n*s);x.fillStyle='#000';
   for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))x.fillRect(c*s,r*s,s,s);
 }
@@ -2367,20 +2369,20 @@ function drawQR(cv,text){
 let scanStream=null,scanRaf=0,scanOn=false;
 async function scanView(mode){
   stopScan();
-  pairView(mode==='answer'?'Now scan the code showing on the other device.':'Point the camera at the code on the other device.',s=>{const c=el('bcam',s);const v=el('',c,'video');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');el('bline',s).textContent='Hold it steady, about a hand away.'},
+  pairView(mode==='answer'?'Now scan the code showing on the other device.':'Point the camera at the code on the other device.',s=>{const c=el('bcam',s);const v=el('',c,'video');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');el('bline',s).textContent='Hold the other screen steady, about 20 cm away, with its brightness up.'},
     [['Cancel',()=>{stopScan();mode==='answer'?hostShow():pairHome()}]]);
   const v=bstep.querySelector('video');
   try{
-    scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false});
+    scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}},audio:false});
     if(state!=='beam'){stopScan();return}
     v.srcObject=scanStream;await v.play();scanOn=true;
-    const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});let last=0;
+    const cv=document.createElement('canvas'),cx=cv.getContext('2d',{willReadFrequently:true});let last=0,pass=0;
     const det=('BarcodeDetector' in window)?await BarcodeDetector.getSupportedFormats().then(f=>f.includes('qr_code')?new BarcodeDetector({formats:['qr_code']}):null).catch(()=>null):null;
     const loop=async t=>{
-      if(!scanOn)return;scanRaf=requestAnimationFrame(loop);if(t-last<140||!v.videoWidth)return;last=t;
+      if(!scanOn)return;scanRaf=requestAnimationFrame(loop);if(t-last<90||!v.videoWidth)return;last=t;
       let txt=null;
       if(det){try{const r=await det.detect(v);if(r[0])txt=r[0].rawValue}catch(e){}}
-      if(!txt){const sc=Math.min(1,640/v.videoWidth);cv.width=v.videoWidth*sc|0;cv.height=v.videoHeight*sc|0;cx.drawImage(v,0,0,cv.width,cv.height);const d=cx.getImageData(0,0,cv.width,cv.height);const r=jsQR(d.data,cv.width,cv.height,{inversionAttempts:'attemptBoth'});if(r)txt=r.data}
+      if(!txt){const vw=v.videoWidth,vh=v.videoHeight;pass++;if(pass%2){const m=Math.min(vw,vh)*.8,sc=Math.min(1,900/m);cv.width=cv.height=m*sc|0;cx.drawImage(v,(vw-m)/2,(vh-m)/2,m,m,0,0,cv.width,cv.height)}else{const sc=Math.min(1,640/vw);cv.width=vw*sc|0;cv.height=vh*sc|0;cx.drawImage(v,0,0,cv.width,cv.height)}const d=cx.getImageData(0,0,cv.width,cv.height);const r=jsQR(d.data,cv.width,cv.height,{inversionAttempts:'attemptBoth'});if(r)txt=r.data}
       if(txt&&scanOn)onScanned(txt);
     };
     scanRaf=requestAnimationFrame(loop);
@@ -2402,7 +2404,7 @@ function packSDP(sdp,kind){
   const setup=g('setup');let cs=[];const seen=new Set();
   for(const m of sdp.matchAll(/a=candidate:\S+ 1 udp \d+ (\S+) (\d+) typ (host|srflx)/g)){const k=m[1]+'/'+m[2];if(seen.has(k))continue;seen.add(k);cs.push([m[3]==='host'?'h':'s',m[1],m[2]])}
   const v4=cs.filter(c=>!c[1].includes(':'));if(v4.length)cs=v4;cs=cs.slice(0,5);
-  const kk=kind==='o'?'o':(setup==='passive'?'p':'a');
+  const kk=kind==='o'?'o':(setup==='passive'?'p':'a');if(kind!=='o')cs=cs.slice(0,2);
   return[kk,DEV.replace(/,/g,' '),g('ice-ufrag'),g('ice-pwd'),fpb,...cs.map(c=>c[0]+c[1]+'/'+c[2])].join(',');
 }
 function unpackSDP(s){
@@ -2451,7 +2453,7 @@ async function guestStart(txt){
     pc.ondatachannel=e=>{dc=e.channel;wireDC()};
     await pc.setRemoteDescription(o.desc);await pc.setLocalDescription(await pc.createAnswer());await gathered(pc);
     const ans='MFBEAM:'+packSDP(pc.localDescription.sdp,'a');
-    pairView('Step 2: show this to the other device.',qrStep(ans,'Tap <b>Step 2</b> on '+esc(peerName)+' and point its camera here. It connects by itself.'),[['Cancel',()=>{closePeer(true);pairHome()}]]);
+    pairView('Step 2: show this to the other device.',qrStep(ans,'Turn your screen brightness up. Tap <b>Step 2</b> on '+esc(peerName)+' and hold this about 20 cm from its camera.',true),[['Cancel',()=>{closePeer(true);pairHome()}]]);
     waitLink();
   }catch(e){closePeer(true);pairHome('That code didn’t work. Try pairing again.')}
 }
@@ -2626,7 +2628,11 @@ function motionOn(){if(motionListening)return;addEventListener('devicemotion',on
 function motionOff(){if(!motionListening)return;removeEventListener('devicemotion',onMotion);motionListening=false}
 const needsAsk=typeof DeviceMotionEvent!=='undefined'&&typeof DeviceMotionEvent.requestPermission==='function';
 let motionOK=!needsAsk&&typeof DeviceMotionEvent!=='undefined';
-bmot.addEventListener('click',async()=>{try{const r=await DeviceMotionEvent.requestPermission();if(r==='granted'){motionOK=true;motionOn();toast('Flick is on')}else toast('Motion was not allowed. You can still swipe up.')}catch(e){toast('Motion isn’t available. You can still swipe up.')}});
+let flickAsked=false;
+function askFlick(){if(motionOK||state!=='beam'||!live())return;if(flickAsked){bmot.hidden=false;return}flickAsked=true;B('bask').hidden=false;B('baskok').focus()}
+async function turnFlickOn(){B('bask').hidden=true;try{const r=await DeviceMotionEvent.requestPermission();if(r==='granted'){motionOK=true;motionOn();bmot.hidden=true;toast('Flick is on')}else{bmot.hidden=false;toast('Motion was not allowed. You can still swipe up.')}}catch(e){bmot.hidden=false;toast('Motion isn’t available. You can still swipe up.')}}
+B('baskok').addEventListener('click',turnFlickOn);B('baskno').addEventListener('click',()=>{B('bask').hidden=true;bmot.hidden=false});
+bmot.addEventListener('click',turnFlickOn);
 // ---- received list + preview ----
 binb.addEventListener('click',()=>{renderList();bbox.hidden=false;B('bboxx').focus()});
 B('bboxx').addEventListener('click',()=>{bbox.hidden=true});
@@ -2664,7 +2670,7 @@ function renderBeam(){
   if(state!=='beam')return;
   if(!live()){if(!pc)pairHome();motionOff();return}
   stopScan();bpair.hidden=true;blive.hidden=false;bpeer.textContent='Connected to '+peerName;
-  if(IS_PHONE){renderOut();if(motionOK)motionOn();else if(needsAsk){bmot.hidden=false;DeviceMotionEvent.requestPermission().then(r=>{if(r==='granted'&&state==='beam'&&live()){motionOK=true;motionOn()}}).catch(()=>{})}}
+  if(IS_PHONE){renderOut();if(motionOK)motionOn();else if(needsAsk){DeviceMotionEvent.requestPermission().then(r=>{if(r==='granted'){motionOK=true;if(state==='beam'&&live())motionOn();B('bask').hidden=true}else askFlick()}).catch(askFlick)}}
   else{renderOut();renderArc()}
 }
 function beamKey(e){
