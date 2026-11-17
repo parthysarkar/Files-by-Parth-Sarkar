@@ -19,11 +19,22 @@ To go back to the shelves, press **Esc** or click **‹ Shelves** at the top lef
 
 - **Write notes.** Click **+** in a tray to add a new file, then type a title and text. Changes save automatically.
 - **Add your own files.** Drag photos, videos, music, PDFs or anything else onto a tray or a shelf, or use the **Upload** button next to **+**. Images, videos and PDFs show a preview.
+- **Lock private files.** Click the padlock in an open file, or right-click → **Lock**. The first time, you choose a 6-digit passcode. That one code opens every locked file. Change it in the **⋯** menu.
 - **Organize.** Right-click a file or folder (or press and hold on a phone) to rename, copy, cut, paste, duplicate, move or delete it.
 - **Make folders.** Use the drawers under a tray to add or remove folders. Swipe, click the folder peeking at the side, or press Page Up / Page Down to switch folders.
 - **Name your shelves anything.** Right-click a shelf (or press and hold on a phone) and choose **Rename shelf**.
 - **Pick a look.** The **Theme** button switches between Light, Dark, Glass and Glass dark.
 - **Sound.** Turn the shelf and paper sounds on or off with the **Sound** button.
+
+## Beam files between devices
+
+Open the **Beam** tab on both devices (same Wi-Fi).
+
+1. On your computer, tap **Show my code**. Scan it with your phone's camera app.
+2. Your phone shows a code back. On the computer tap **Step 2** and hold the phone up to its camera.
+3. Connected! On the phone, pick a file and **flick your phone** (or swipe the card up). On the computer, **drag a file up** to throw it to the phone.
+
+Received files stay in the Beam tab, ready to open or download. Files go straight between the two devices, encrypted, and never through a server.
 
 ## Keep your files safe
 
@@ -35,7 +46,7 @@ Open the **⋯** menu to:
 - **Restore from a backup.** Bring a backup back, for example on a new computer.
 - **Save to a folder on this computer.** Keep a live copy in a real folder (Chrome or Edge on a computer).
 
-> Clearing your browser data deletes your files. Make a backup now and then.
+> Clearing your browser data deletes your files. Make a backup now and then. If you forget your passcode, it can’t be recovered.
 
 ## Shortcuts
 
