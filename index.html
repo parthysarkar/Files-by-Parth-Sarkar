@@ -653,6 +653,21 @@ transition:transform .75s cubic-bezier(.2,.8,.2,1),box-shadow .3s;transform-orig
 .bfield{width:100%;margin-top:18px;padding:11px 14px;border-radius:12px;border:1px solid var(--ln2);background:var(--btn);color:var(--t);font:14px/1.3 system-ui,sans-serif;outline:0;-webkit-user-select:text;user-select:text}
 .bfield:focus{border-color:var(--acc2);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc2) 22%,transparent)}
 .burl{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--btn);border:1px solid var(--ln);font:12.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--m);word-break:break-all;max-height:84px;overflow:auto;text-align:left}
+
+.btog{display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 6px;border-radius:999px;font-size:12.5px;cursor:pointer;background:var(--btn);border:1px solid var(--ln2);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.btog input{position:absolute;opacity:0;width:1px;height:1px}
+.btog i{position:relative;width:30px;height:18px;border-radius:999px;background:var(--ln2);transition:background .25s}
+.btog i::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.btog input:checked+i{background:#2fbf71}
+.btog input:checked+i::after{transform:translateX(12px)}
+.btog input:focus-visible+i{outline:2px solid var(--acc2);outline-offset:2px}
+.bshl{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:16px}
+.bv .bshl button{padding:6px 13px;font-size:12.5px}
+.bv .bshl button[aria-checked="true"]{background:var(--pri);color:var(--prt);border-color:var(--pri)}
+.bchk{display:inline-flex;align-items:center;gap:8px;margin-top:16px;font-size:12.5px;color:var(--m);cursor:pointer}
+.bchk input{accent-color:#2fbf71;width:15px;height:15px}
+.brow{flex-wrap:wrap}
+.bsaved{display:inline-flex;align-items:center;gap:5px;color:#2fbf71;font-weight:600}
 @media (max-width:560px){.bhead{padding:12px 14px}.bpt{font-size:21px}.bpc{padding:24px 18px 20px}.bdock{margin:0 10px 10px}}
 @media (prefers-reduced-motion:reduce){.bspin{animation:none}.bc{transition:none}}
 </style>
@@ -2300,7 +2315,7 @@ const DEV=(()=>{const u=navigator.userAgent;if(/iPhone/.test(u))return'iPhone';i
 bv.innerHTML=`<div class="bvbg"></div>
 <div class="bpair" id="bpair"><div class="bpc"><div class="bpt">Beam files</div><div class="bps" id="bps"></div><div class="bstep" id="bstep"></div><div class="bbtns" id="bbtns"></div><div class="bnote" id="bnote"></div></div></div>
 <div class="blive" id="blive" hidden>
-  <div class="bhead"><span class="bpeer"><i class="bdot"></i><span id="bpeer"></span></span><button type="button" id="binb">Received (0)</button><button type="button" id="bdisc">Disconnect</button></div>
+  <div class="bhead"><span class="bpeer"><i class="bdot"></i><span id="bpeer"></span></span><label class="btog" title="Save received files to My Files automatically: photos and videos to Photos &amp; Videos, everything else to Files"><input type="checkbox" id="bauto"><i></i><span>Auto-save</span></label><button type="button" id="binb">Received (0)</button><button type="button" id="bdisc">Disconnect</button></div>
   <div class="bstat" id="bstat" role="status"></div>
   <div class="bstage" id="bstage"><div class="btag"><b>Ready to receive</b><span>Files and links from the other device land here.</span></div><div class="barc" id="barc"></div><div class="bmore" id="bmore"></div><div class="bhero" id="bhero" hidden><div class="bprog"><i></i></div></div></div>
   <div class="bdock" id="bdock"><div class="bdl">Drag a card up to throw it to the other device. You can also drop files or paste a link here.</div><div class="bdrow" id="bdrow"><button type="button" class="badd" id="badd">+ Files</button><button type="button" class="badd" id="blinkb">+ Link</button></div></div>
@@ -2315,8 +2330,9 @@ bv.innerHTML=`<div class="bvbg"></div>
   <div class="bdrop" id="bdrop" hidden><div class="bprog"><i></i></div><div class="bfrom"></div></div>
 </div>
 <div class="bbox" id="bbox" hidden><div class="bpanel" role="dialog" aria-label="Received files"><div class="bph"><b>Received files</b><button type="button" id="bboxx">Close</button></div><div class="blist" id="blist"></div></div></div>
-<div class="bprev" id="bprev" hidden><div class="bpv"><div id="bpmw"></div><div class="bpn" id="bpn"></div><div class="bbtns"><button type="button" class="pri" id="bpdl">Download</button><button type="button" id="bpdel">Delete</button><button type="button" id="bpx">Close</button></div></div></div>
+<div class="bprev" id="bprev" hidden><div class="bpv"><div id="bpmw"></div><div class="bpn" id="bpn"></div><div class="bbtns"><button type="button" class="pri" id="bpsave">Save to My Files</button><button type="button" id="bpdl">Save to computer</button><button type="button" id="bpdel">Delete</button><button type="button" id="bpx">Close</button></div></div></div>
 <div class="bdlg" id="blnk" hidden><div class="bpc" role="dialog" aria-labelledby="blnkt"><div class="bpt" id="blnkt">Beam a link</div><div class="bps">Paste a web address. The other device will ask before opening it.</div><input class="bfield" id="blin" type="url" inputmode="url" placeholder="https://" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Web address"><div class="bbtns"><button type="button" class="pri" id="blok">Add link</button><button type="button" id="blno">Cancel</button></div></div></div>
+<div class="bdlg" id="bsave" hidden><div class="bpc" role="dialog" aria-labelledby="bsvt"><div class="bpt" id="bsvt">Save this file?</div><div class="bps" id="bsvs"></div><div class="bshl" id="bsvsh" role="radiogroup" aria-label="Shelf"></div><div class="bbtns"><button type="button" class="pri" id="bsvok">Save to My Files</button><button type="button" id="bsvpc">Save to computer</button><button type="button" id="bsvno">Keep in Beam</button></div><label class="bchk"><input type="checkbox" id="bsvauto"> Always save automatically</label></div></div>
 <div class="bdlg" id="bopen" hidden><div class="bpc" role="alertdialog" aria-labelledby="bopt"><div class="bpt" id="bopt">Open this link?</div><div class="bps" id="bops"></div><div class="burl" id="bopu"></div><div class="bbtns"><button type="button" class="pri" id="bopok">Open in new tab</button><button type="button" id="bopno">Not now</button></div></div></div>`;
 const B=id=>bv.querySelector('#'+id);
 const bps=B('bps'),bstep=B('bstep'),bbtns=B('bbtns'),bnote=B('bnote'),bpair=B('bpair'),blive=B('blive'),bpeer=B('bpeer'),binb=B('binb'),bstat=B('bstat'),bstage=B('bstage'),barc=B('barc'),bhero=B('bhero'),bdock=B('bdock'),bdrow=B('bdrow'),bphone=B('bphone'),bcard=B('bcard'),bmt=B('bmt'),bmsub=B('bmsub'),bmot=B('bmot'),bstrip=B('bstrip'),bdrop=B('bdrop'),bbox=B('bbox'),blist=B('blist'),bprev=B('bprev');
@@ -2359,7 +2375,7 @@ function showTab(on){
   }else{
     if(state!=='beam')return;
     stopScan();motionOff();bbox.hidden=true;bprev.hidden=true;
-    bv.hidden=true;document.body.classList.remove('atbeam');state=beamPrev;
+    bv.hidden=true;document.body.classList.remove('atbeam');state=beamPrev;if(homeDirty)refreshHome();
     tabF.setAttribute('aria-selected','true');tabB.setAttribute('aria-selected','false');stage.focus({preventScroll:true});
   }
 }
@@ -2516,7 +2532,7 @@ async function incomingDone(){
   try{dc&&dc.send(JSON.stringify({t:'got',id:r.id}))}catch(e){}
   binb.textContent='Received ('+bItems.length+')';
   if(state!=='beam'){tBadge.hidden=false;toast(r.name+' arrived from '+peerName)}
-  incomingLand(it);if(!bbox.hidden)renderList();
+  incomingLand(it).then(()=>afterReceive(it));if(!bbox.hidden)renderList();
 }
 const safeUrl=u=>{u=String(u||'').trim();if(!u)return null;if(!/^[a-z][a-z0-9+.-]*:/i.test(u))u='https://'+u;try{const x=new URL(u);return(x.protocol==='https:'||x.protocol==='http:')&&x.hostname.includes('.')||x.hostname==='localhost'?x.href:null}catch(e){return null}};
 function incomingLink(m){
@@ -2526,11 +2542,12 @@ function incomingLink(m){
   if(state!=='beam'){tBadge.hidden=false;toast('A link arrived from '+peerName+'. Open the Beam tab to see it.');return}
   incomingStart({name:it.name,mime:'',size:0,url:u});incomingLand(it).then(()=>askOpen(it));
 }
+let linkPending=null;
 function askOpen(it){
-  if(state!=='beam')return;B('bops').textContent=it.from+' sent you a link.';B('bopu').textContent=it.url;B('bopen').hidden=false;B('bopen').dataset.id=it.id;B('bopok').focus();
+  if(state!=='beam')return;if(!B('bsave').hidden){linkPending=it;return}B('bops').textContent=it.from+' sent you a link.';B('bopu').textContent=it.url;B('bopen').hidden=false;B('bopen').dataset.id=it.id;B('bopok').focus();
 }
-B('bopok').addEventListener('click',()=>{const it=bItems.find(x=>x.id===B('bopen').dataset.id);B('bopen').hidden=true;if(it)openLink(it.url)});
-B('bopno').addEventListener('click',()=>{B('bopen').hidden=true});
+B('bopok').addEventListener('click',()=>{const it=bItems.find(x=>x.id===B('bopen').dataset.id);B('bopen').hidden=true;if(it)openLink(it.url);setTimeout(nextSavePrompt,250)});
+B('bopno').addEventListener('click',()=>{B('bopen').hidden=true;setTimeout(nextSavePrompt,250)});
 function openLink(u){const w=window.open(u,'_blank');if(w){try{w.opener=null}catch(e){}}else toast('Your browser blocked the new tab. Allow pop-ups for this site.')}
 // links you send: paste a web address, it becomes a card you can flick or throw
 function addLink(raw){const u=safeUrl(raw);if(!u){toast('That doesn’t look like a web address');return false}
@@ -2699,7 +2716,9 @@ function renderList(){
     const r=el('brow',blist),t=el('brt',r);itemUrl(it).then(u=>face(t,it,u));
     const m=el('brm',r);el('',m,'b').textContent=it.url||it.name;el('',m,'span').textContent='From '+it.from+' · '+ago(it.t)+' · '+(it.url?'Link':fmtSize(it.size));
     const o=el('',r,'button');o.type='button';o.textContent='View';o.addEventListener('click',()=>openPrev(it.id));
-    const d=el('',r,'button');d.type='button';d.textContent=it.url?'Open link':'Download';d.addEventListener('click',()=>it.url?openLink(it.url):dlItem(it));
+    if(it.url){const d=el('',r,'button');d.type='button';d.textContent='Open link';d.addEventListener('click',()=>openLink(it.url))}
+    else{if(it.saved){const sv=el('bsaved',r,'span');sv.textContent='✓ In '+it.saved}else{const sv=el('',r,'button');sv.type='button';sv.textContent='Save to My Files';sv.addEventListener('click',async()=>{sv.disabled=true;if(await saveToShelf(it,shelfFor(it)))toast('Saved to '+it.saved);else sv.disabled=false})}
+      const d=el('',r,'button');d.type='button';d.textContent=DL_LABEL;d.addEventListener('click',()=>dlItem(it))}
   });
 }
 let prevId=null;
@@ -2707,7 +2726,7 @@ async function openPrev(id,from){
   const it=bItems.find(x=>x.id===id);if(!it)return;prevId=id;const u=it.url?null:await itemUrl(it),k=it.url?'link':kindOf({t:it.name,mime:it.mime}),w=B('bpmw');w.innerHTML='';
   let m;if(k==='image'&&u){m=el('bpm',w,'img');m.src=u;m.alt=it.name;try{await m.decode()}catch(e){}}else if(k==='video'&&u){m=el('bpm',w,'video');m.src=u;m.controls=true;m.playsInline=true}else if(k==='audio'&&u){m=el('',w,'audio');m.src=u;m.controls=true}else{m=el('bpm ic',w);face(m,it,null)}
   B('bpn').textContent=it.url||it.name;el('',B('bpn'),'span').textContent='From '+it.from+' · '+ago(it.t)+(it.url?'':' · '+fmtSize(it.size));
-  B('bpdl').textContent=it.url?'Open in new tab':'Download';
+  B('bpdl').textContent=it.url?'Open in new tab':DL_LABEL;paintSaveBtn(it);
   bprev.hidden=false;B('bpdl').focus({preventScroll:true});
   if(from&&m&&!REDUCE&&m.getBoundingClientRect){const a2=from.getBoundingClientRect(),b2=m.getBoundingClientRect();if(b2.width&&a2.width){
     m.animate([{transform:'translate('+(a2.left+a2.width/2-b2.left-b2.width/2)+'px,'+(a2.top+a2.height/2-b2.top-b2.height/2)+'px) scale('+(a2.width/b2.width)+')',opacity:.6},{transform:'none',opacity:1}],{duration:380,easing:'cubic-bezier(.2,.8,.2,1)'});
@@ -2723,6 +2742,65 @@ B('bpdel').addEventListener('click',async()=>{
   closePrev();binb.textContent='Received ('+bItems.length+')';if(!IS_PHONE)renderArc();if(!bbox.hidden)renderList();toast('Deleted');
 });
 B('bdisc').addEventListener('click',()=>{try{dc&&dc.send(JSON.stringify({t:'bye'}))}catch(e){}closePeer(true);motionOff();pairHome('Disconnected.')});
+
+// ---- keep received files: save them into My Files, or onto the computer ----
+const DL_LABEL=/iPhone|Android phone/.test(DEV)?'Save to phone':'Save to computer';
+B('bpdl').textContent=DL_LABEL;B('bsvpc').textContent=DL_LABEL;
+let autoSave=false;try{autoSave=localStorage.getItem('myfiles-beam-auto')==='1'}catch(e){}
+const bauto=B('bauto');bauto.checked=autoSave;
+function setAuto(v){autoSave=v;bauto.checked=v;B('bsvauto').checked=v;try{localStorage.setItem('myfiles-beam-auto',v?'1':'0')}catch(e){}}
+bauto.addEventListener('change',()=>{setAuto(bauto.checked);toast(autoSave?'Received files will be saved to My Files':'You’ll be asked for each file');if(autoSave){const l=bItems.filter(x=>!x.url&&!x.saved&&savePending.includes(x.id));savePending=[];B('bsave').hidden=true;l.forEach(autoSaveItem)}});
+const isMedia=it=>{const k=kindOf({t:it.name,mime:it.mime});return k==='image'||k==='video'};
+function shelfFor(it){const m=isMedia(it);let i=shelves.findIndex(x=>x.id===(m?'s1':'s0'));if(i<0&&m)i=shelves.findIndex(x=>/photo|video/i.test(x.name));return i<0?0:i}
+let homeDirty=false;
+function refreshHome(){if(state==='tray'){buildTray(Math.min(tr,sizes.length-1));rebuildPeeks(null);homeDirty=false}else if(state==='shelves'){buildShelves();homeDirty=false}else homeDirty=true}
+async function saveToShelf(it,si){
+  if(it.url)return false;
+  if(state!=='beam'&&state!=='tray'&&state!=='shelves'){await new Promise(r=>{const iv=setInterval(()=>{if(state==='beam'||state==='tray'||state==='shelves'){clearInterval(iv);r()}},800)})}
+  let b=null;try{b=await getBlob('blobs',it.id)}catch(e){}
+  if(!b){toast('That file is no longer here');return false}
+  const id='f'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);pendingIds.add(id);
+  try{await putBlob('blobs',id,b)}catch(e){pendingIds.delete(id);toast('This browser couldn’t store '+it.name);return false}
+  const e={t:it.name.slice(0,80),b:'',l:false,r:true,k:'f',id,mime:it.mime||b.type||'',size:b.size,u:id.slice(1,14)};
+  if(kindOf(e)==='text'&&b.size<4e6){try{e.snip=(await b.slice(0,700).text()).replace(/\r/g,'')}catch(_){}}
+  {const k=kindOf(e);if(k==='image'||k==='video'||k==='pdf'){try{const t=await makeThumb(e,b);if(t)await putBlob('thumbs',id,t)}catch(_){}}}
+  const sh=shelves[si]||shelves[0],cur=sh===shelves[shelf],D=cur?{saved,sizes,names}:readShelf(sh.id);
+  let g=D.saved.findIndex(x=>!isFile(x)&&!x.t&&!x.b&&!x.l);
+  if(g>=0){D.saved[g]=e;if(cur)draft[g]=null}
+  else{let last=D.sizes.length-1;if(D.sizes[last]>=PER){D.sizes.push(0);last++}const at=D.sizes.slice(0,last+1).reduce((a,c)=>a+c,0);D.saved.splice(at,0,e);D.sizes[last]++;if(cur)draft.splice(at,0,null)}
+  try{
+    if(cur){padNames();persist();refreshHome()}
+    else{localStorage.setItem(sk(KEY,sh.id),JSON.stringify(D.saved));localStorage.setItem(sk('cardtray-sizes',sh.id),JSON.stringify(D.sizes));scheduleGc()}
+  }catch(err){pendingIds.delete(id);toast('Couldn’t save '+it.name);return false}
+  pendingIds.delete(id);
+  recent=recent.filter(x=>!(x.s===sh.id&&x.u===e.u));recent.unshift({s:sh.id,u:e.u,t:Date.now(),e:2});recent=recent.slice(0,30);saveRecent();
+  it.saved=sh.name;saveItems();scheduleSync();if(!bbox.hidden)renderList();if(prevId===it.id)paintSaveBtn(it);
+  return true;
+}
+async function autoSaveItem(it){if(await saveToShelf(it,shelfFor(it)))toast(it.name+' saved to '+it.saved)}
+// ask what to do with each file (one at a time)
+let savePending=[],saveSel=0;
+function afterReceive(it){
+  if(it.url)return;
+  if(autoSave){autoSaveItem(it);return}
+  savePending.push(it.id);if(state==='beam')nextSavePrompt();
+}
+function nextSavePrompt(){
+  if(state!=='beam'||!B('bsave').hidden||!B('bopen').hidden)return;
+  if(linkPending){const l=linkPending;linkPending=null;askOpen(l);return}
+  let it=null;while(savePending.length&&!it){const id=savePending[0];it=bItems.find(x=>x.id===id&&!x.saved);if(!it)savePending.shift()}
+  if(!it)return;
+  saveSel=shelfFor(it);B('bsvt').textContent='Save '+it.name+'?'+(savePending.length>1?' (1 of '+savePending.length+')':'');B('bsvs').textContent='From '+it.from+' · '+fmtSize(it.size)+'. Pick a shelf in My Files, or keep a copy on this '+(DL_LABEL==='Save to phone'?'phone':'computer')+'.';
+  const box=B('bsvsh');box.innerHTML='';
+  shelves.forEach((x,i)=>{const b=el('',box,'button');b.type='button';b.setAttribute('role','radio');b.setAttribute('aria-checked',String(i===saveSel));b.textContent=x.name;b.addEventListener('click',()=>{saveSel=i;[...box.children].forEach((c,j)=>c.setAttribute('aria-checked',String(j===i)))})});
+  B('bsvauto').checked=autoSave;B('bsave').dataset.id=it.id;B('bsave').hidden=false;B('bsvok').focus({preventScroll:true});
+}
+function doneSavePrompt(){savePending.shift();B('bsave').hidden=true;setTimeout(nextSavePrompt,250)}
+B('bsvok').addEventListener('click',async()=>{const it=bItems.find(x=>x.id===B('bsave').dataset.id);const si=saveSel;if(B('bsvauto').checked&&!autoSave)setAuto(true);doneSavePrompt();if(it&&await saveToShelf(it,si))toast('Saved to '+it.saved)});
+B('bsvpc').addEventListener('click',()=>{const it=bItems.find(x=>x.id===B('bsave').dataset.id);if(B('bsvauto').checked&&!autoSave)setAuto(true);doneSavePrompt();if(it)dlItem(it)});
+B('bsvno').addEventListener('click',()=>{if(B('bsvauto').checked&&!autoSave)setAuto(true);doneSavePrompt()});
+function paintSaveBtn(it){const b=B('bpsave');b.hidden=!!it.url;b.disabled=!!it.saved;b.textContent=it.saved?'Saved to '+it.saved:'Save to My Files'}
+B('bpsave').addEventListener('click',async()=>{const it=bItems.find(x=>x.id===prevId);if(!it||it.saved)return;B('bpsave').disabled=true;if(await saveToShelf(it,shelfFor(it)))toast('Saved to '+it.saved);else paintSaveBtn(it)});
 // ---- draw the right screen ----
 function renderBeam(){
   binb.textContent='Received ('+bItems.length+')';
@@ -2731,10 +2809,11 @@ function renderBeam(){
   stopScan();bpair.hidden=true;blive.hidden=false;bpeer.textContent='Connected to '+peerName;
   if(IS_PHONE){renderOut();if(motionOK)motionOn();else if(needsAsk){DeviceMotionEvent.requestPermission().then(r=>{if(r==='granted'){motionOK=true;if(state==='beam'&&live())motionOn();B('bask').hidden=true}else askFlick()}).catch(askFlick)}}
   else{renderOut();renderArc()}
+  setTimeout(nextSavePrompt,300);
 }
 function beamKey(e){
   if(e.key!=='Escape')return;
-  if(!B('bopen').hidden){e.preventDefault();B('bopen').hidden=true}else if(!B('blnk').hidden){e.preventDefault();B('blnk').hidden=true}else if(!bprev.hidden){e.preventDefault();closePrev()}else if(!bbox.hidden){e.preventDefault();bbox.hidden=true}
+  if(!B('bsave').hidden){e.preventDefault();doneSavePrompt()}else if(!B('bopen').hidden){e.preventDefault();B('bopen').hidden=true;setTimeout(nextSavePrompt,250)}else if(!B('blnk').hidden){e.preventDefault();B('blnk').hidden=true}else if(!bprev.hidden){e.preventDefault();closePrev()}else if(!bbox.hidden){e.preventDefault();bbox.hidden=true}
 }
 // files dropped onto the Beam screen are queued to send
 function beamDrag(e){if(IS_PHONE)return;e.preventDefault();e.dataTransfer.dropEffect=live()?'copy':'none';bv.classList.toggle('dropping',live()&&e.type!=='dragleave'&&e.type!=='drop')}

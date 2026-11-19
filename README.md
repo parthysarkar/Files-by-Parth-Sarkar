@@ -36,7 +36,7 @@ Open the **Beam** tab on both devices (same Wi-Fi).
 
 To send a link, tap **Send a link** (or paste one on the computer). The other device asks before opening it in a new tab.
 
-Received files stay in the Beam tab, ready to open or download. Files go straight between the two devices, encrypted, and never through a server.
+Each received file asks where to go: **Save to My Files** (pick a shelf) or **Save to computer**. Turn on **Auto-save** to skip the question: photos and videos go to *Photos & Videos*, everything else to *Files*. Received files also stay in the Beam tab. Files go straight between the two devices, encrypted, and never through a server.
 
 ## Keep your files safe
 
