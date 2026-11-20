@@ -668,6 +668,14 @@ transition:transform .75s cubic-bezier(.2,.8,.2,1),box-shadow .3s;transform-orig
 .bchk input{accent-color:#2fbf71;width:15px;height:15px}
 .brow{flex-wrap:wrap}
 .bsaved{display:inline-flex;align-items:center;gap:5px;color:#2fbf71;font-weight:600}
+
+.bcw>*{grid-area:1/1}
+.bcw{padding:6px 0 16px}
+.bstk{position:relative;height:min(100%,340px);aspect-ratio:3/4;max-width:78%;border:1px solid var(--ln2);border-radius:8px;background:var(--pns) center/cover no-repeat;box-shadow:0 30px 60px -30px rgba(0,0,0,.55);overflow:hidden;pointer-events:none}
+#bstk1{transform:rotate(-5deg) translate(-12px,8px)}
+#bstk2{transform:rotate(6deg) translate(12px,10px)}
+.bcount{position:absolute;top:10px;right:10px;z-index:3;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(10,12,20,.62);color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.bv .bs.sent::after{content:"";position:absolute;right:3px;top:3px;z-index:2;width:13px;height:13px;border-radius:50%;background:#2fbf71 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.3l2.3 2.2 4.7-4.8' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/10px no-repeat}
 @media (max-width:560px){.bhead{padding:12px 14px}.bpt{font-size:21px}.bpc{padding:24px 18px 20px}.bdock{margin:0 10px 10px}}
 @media (prefers-reduced-motion:reduce){.bspin{animation:none}.bc{transition:none}}
 </style>
@@ -2320,7 +2328,7 @@ bv.innerHTML=`<div class="bvbg"></div>
   <div class="bstage" id="bstage"><div class="btag"><b>Ready to receive</b><span>Files and links from the other device land here.</span></div><div class="barc" id="barc"></div><div class="bmore" id="bmore"></div><div class="bhero" id="bhero" hidden><div class="bprog"><i></i></div></div></div>
   <div class="bdock" id="bdock"><div class="bdl">Drag a card up to throw it to the other device. You can also drop files or paste a link here.</div><div class="bdrow" id="bdrow"><button type="button" class="badd" id="badd">+ Files</button><button type="button" class="badd" id="blinkb">+ Link</button></div></div>
   <div class="bphone" id="bphone">
-    <div class="bcw"><button type="button" class="bcard none" id="bcard">Choose a file to beam</button></div>
+    <div class="bcw"><i class="bstk" id="bstk2" hidden></i><i class="bstk" id="bstk1" hidden></i><button type="button" class="bcard none" id="bcard">Choose files to beam</button></div>
     <div class="bmsg"><b id="bmt">Give it a little flick.</b><span id="bmsub">Flick your phone or swipe up with a finger.</span></div>
     <div class="bacts"><button type="button" id="bpick">Choose files</button><button type="button" id="blinkp">Send a link</button><button type="button" id="bgo">Beam it ↑</button><button type="button" id="bmot" hidden>Turn on flick</button></div>
     <div class="bstrip" id="bstrip"></div>
@@ -2551,7 +2559,7 @@ B('bopno').addEventListener('click',()=>{B('bopen').hidden=true;setTimeout(nextS
 function openLink(u){const w=window.open(u,'_blank');if(w){try{w.opener=null}catch(e){}}else toast('Your browser blocked the new tab. Allow pop-ups for this site.')}
 // links you send: paste a web address, it becomes a card you can flick or throw
 function addLink(raw){const u=safeUrl(raw);if(!u){toast('That doesn’t look like a web address');return false}
-  const it={url:u,name:hostOf(u),mime:'',key:Math.random().toString(36).slice(2)};outbox.push(it);sel=outbox.length-1;bphone.classList.remove('sent');renderOut();return true}
+  const it={url:u,name:hostOf(u),mime:'',key:Math.random().toString(36).slice(2),on:true};outbox.forEach(x=>x.on=false);outbox.push(it);bphone.classList.remove('sent');renderOut();return true}
 function linkDialog(){if(!live()){toast('Pair a device first');return}const d=B('blnk'),i=B('blin');i.value='';d.hidden=false;setTimeout(()=>i.focus(),30);
   if(navigator.clipboard&&navigator.clipboard.readText)navigator.clipboard.readText().then(t=>{if(!i.value&&safeUrl(t)&&/\./.test(t))i.value=t.trim()}).catch(()=>{})}
 B('blinkb').addEventListener('click',linkDialog);B('blinkp').addEventListener('click',linkDialog);
@@ -2615,20 +2623,25 @@ function renderArc(){
   layoutArc();
 }
 // ---- things to send (picked from this device) ----
-let outbox=[],sel=0;const outUrls=new Map();
+let outbox=[];const outUrls=new Map();
 const fpick=el('',document.body,'input');fpick.type='file';fpick.multiple=true;fpick.hidden=true;
 fpick.addEventListener('change',()=>{const l=[...fpick.files];fpick.value='';addOut(l)});
 function addOut(files){
-  for(const f of files){const it={file:f,name:f.name||'file',mime:f.type||'',key:Math.random().toString(36).slice(2)};outUrls.set(it.key,URL.createObjectURL(f));outbox.push(it)}
-  if(files.length)sel=outbox.length-files.length;renderOut();
+  if(!files.length)return;outbox.forEach(x=>x.on=false);
+  for(const f of files){const it={file:f,name:f.name||'file',mime:f.type||'',key:Math.random().toString(36).slice(2),on:true};outUrls.set(it.key,URL.createObjectURL(f));outbox.push(it)}
+  bphone.classList.remove('sent');renderOut();
 }
+const picked=()=>outbox.filter(x=>x.on);
 function renderOut(){
   if(IS_PHONE){
     bstrip.innerHTML='';
-    outbox.forEach((it,i)=>{const b=el('bs'+(i===sel?' on':''),bstrip,'button');b.type='button';b.setAttribute('aria-label',it.name);face(b,it,outUrls.get(it.key));b.addEventListener('click',()=>{sel=i;renderOut()})});
-    const cur=outbox[sel];bcard.classList.toggle('none',!cur);bcard.textContent=cur?'':'Choose a file to beam';
-    if(cur){face(bcard,cur,outUrls.get(cur.key));bcard.setAttribute('aria-label','Beam '+cur.name+'. Flick your phone or swipe up.')}else bcard.style.backgroundImage='';
-    B('bgo').disabled=!cur;
+    outbox.forEach(it=>{const b=el('bs'+(it.on?' on':'')+(it.sent?' sent':''),bstrip,'button');b.type='button';b.setAttribute('aria-pressed',String(!!it.on));b.setAttribute('aria-label',it.name+(it.on?', selected':'')+(it.sent?', sent':''));face(b,it,outUrls.get(it.key));b.addEventListener('click',()=>{if(flicking)return;it.on=!it.on;renderOut()})});
+    const L=picked(),cur=L[0],m=L.length;bcard.classList.toggle('none',!cur);bcard.textContent=cur?'':(outbox.length?'Tap files below to select them':'Choose files to beam');
+    [B('bstk1'),B('bstk2')].forEach((x,i)=>{const it=L[i+1];x.hidden=!it;if(it)face(x,it,outUrls.get(it.key))});
+    if(cur){face(bcard,cur,outUrls.get(cur.key));if(m>1)el('bcount',bcard,'span').textContent=m+' files';bcard.setAttribute('aria-label',(m>1?'Beam '+m+' files':'Beam '+cur.name)+'. Flick your phone or swipe up.')}else bcard.style.backgroundImage='';
+    if(!flicking&&!bphone.classList.contains('sent')&&!m&&outbox.length){bmt.textContent='All sent.';bmsub.textContent='Choose more files, or tap one below to send it again.'}
+    else if(!flicking&&!bphone.classList.contains('sent')){bmt.textContent=m>1?'Flick to send all '+m+'.':'Give it a little flick.';bmsub.textContent=m>1?'Flick your phone or swipe up. Tap a file below to leave it out.':'Flick your phone or swipe up with a finger.'}
+    B('bgo').disabled=!cur;B('bgo').textContent=m>1?'Beam all '+m+' ↑':'Beam it ↑';
   }else{
     [...bdrow.querySelectorAll('.bo')].forEach(x=>x.remove());const add=B('badd');
     outbox.forEach((it,i)=>{const b=document.createElement('button');b.type='button';b.className='bo'+(it.sent?' sent':'');b.dataset.i=i;b.setAttribute('aria-label','Throw '+it.name+' to '+(peerName||'the other device'));face(b,it,outUrls.get(it.key));bdrow.insertBefore(b,add);wireThrow(b,i)});
@@ -2668,21 +2681,25 @@ async function sendItem(it){
 }
 // phone: flick the phone, or swipe the card up
 let flicking=false;
+let backT=0;
 async function flickSend(){
-  const it=outbox[sel];if(!it||flicking)return;if(!live()){toast('Not connected');return}
+  const L=picked();if(!L.length||flicking)return;if(!live()){toast('Not connected');return}
   flicking=true;whoosh(true);if(navigator.vibrate)navigator.vibrate(12);
-  const a=bcard.animate([{transform:bcard.style.transform||'none',opacity:1,filter:'blur(0)'},{transform:'translateY(-12px) scale(1.04)',opacity:1,offset:.18},{transform:'translateY(-125vh) scale(.6) rotateX(28deg)',opacity:.85,filter:'blur(3px)'}],{duration:REDUCE?1:560,easing:'cubic-bezier(.5,0,.75,.2)',fill:'forwards'});
-  await new Promise(r=>a.onfinish=r);
-  bmt.textContent='Beaming…';bmsub.textContent=it.url||it.name;
-  const ok=await sendItem(it);a.cancel();bcard.style.transform='';flicking=false;
-  if(ok){B('bdto').textContent='Delivered to '+peerName;bphone.classList.add('sent')}
-  else{bmt.textContent='That didn’t go through.';bmsub.textContent='Check the connection and try again.'}
+  const cards=[bcard,...[B('bstk1'),B('bstk2')].filter(x=>!x.hidden)];
+  const fly=cards.map((c,i)=>c.animate([{transform:c===bcard?(bcard.style.transform||'none'):getComputedStyle(c).transform,opacity:1,filter:'blur(0)'},{transform:'translateY(-12px) scale(1.04)',opacity:1,offset:.18},{transform:'translateY(-125vh) scale(.6) rotateX(28deg)',opacity:.85,filter:'blur(3px)'}],{duration:REDUCE?1:560,delay:REDUCE?0:i*80,easing:'cubic-bezier(.5,0,.75,.2)',fill:'forwards'}));
+  await new Promise(r=>fly[fly.length-1].onfinish=r);
+  const n=L.length;let ok=0;
+  for(let i=0;i<n;i++){const it=L[i];bmt.textContent=n>1?'Beaming '+(i+1)+' of '+n+'…':'Beaming…';bmsub.textContent=it.url||it.name;if(await sendItem(it)){ok++;it.on=false}else break}
+  fly.forEach(x=>x.cancel());bcard.style.transform='';flicking=false;
+  if(ok===n){B('bdto').textContent=(n>1?n+' files delivered to ':'Delivered to ')+peerName;bphone.classList.add('sent');clearTimeout(backT);backT=setTimeout(()=>{if(bphone.classList.contains('sent'))backToCollection()},1800)}
+  else{renderOut();bmt.textContent=ok?ok+' of '+n+' sent. The rest didn’t go through.':'That didn’t go through.';bmsub.textContent='Check the connection and flick again.'}
 }
+function backToCollection(){clearTimeout(backT);bphone.classList.remove('sent');renderOut()}
 B('bgo').addEventListener('click',flickSend);
-B('bback').addEventListener('click',()=>{bphone.classList.remove('sent');if(outbox.length)sel=(sel+1)%outbox.length;bmt.textContent='Give it a little flick.';bmsub.textContent='Flick your phone or swipe up with a finger.';renderOut()});
+B('bback').addEventListener('click',backToCollection);
 bcard.addEventListener('click',()=>{if(!outbox.length)fpick.click()});
 {let sy=0,st=0,dn=false;
-  bcard.addEventListener('pointerdown',e=>{if(!outbox.length||flicking)return;dn=true;sy=e.clientY;st=e.timeStamp;bcard.setPointerCapture(e.pointerId)});
+  bcard.addEventListener('pointerdown',e=>{if(!picked().length||flicking)return;dn=true;sy=e.clientY;st=e.timeStamp;bcard.setPointerCapture(e.pointerId)});
   bcard.addEventListener('pointermove',e=>{if(!dn)return;const dy=Math.min(0,e.clientY-sy);bcard.style.transform='translateY('+dy+'px) rotateX('+(-dy*.05).toFixed(1)+'deg)'});
   const up=e=>{if(!dn)return;dn=false;const dy=e.clientY-sy,v=dy/Math.max(1,e.timeStamp-st);if(dy<-70||v<-.5)flickSend();else{bcard.animate([{transform:bcard.style.transform||'none'},{transform:'none'}],{duration:280,easing:'cubic-bezier(.34,1.56,.64,1)'});bcard.style.transform=''}};
   bcard.addEventListener('pointerup',up);bcard.addEventListener('pointercancel',up);
@@ -2690,7 +2707,7 @@ bcard.addEventListener('click',()=>{if(!outbox.length)fpick.click()});
 // motion sensor flick (only while the Beam tab is showing and connected)
 let motionListening=false,lastFlick=0;
 function onMotion(e){
-  if(flicking||!outbox[sel]||bphone.classList.contains('sent')||!bbox.hidden||!bprev.hidden)return;
+  if(flicking||!outbox.some(x=>x.on)||bphone.classList.contains('sent')||!bbox.hidden||!bprev.hidden)return;
   const a=e.acceleration,ag=e.accelerationIncludingGravity,r=e.rotationRate||{};
   const acc=a&&a.x!=null?Math.hypot(a.x,a.y,a.z):ag&&ag.x!=null?Math.abs(Math.hypot(ag.x,ag.y,ag.z)-9.81):0;
   const rot=Math.abs(r.beta||0);const now=performance.now();
