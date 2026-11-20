@@ -680,15 +680,14 @@ background:var(--pn);border:1px solid var(--ln);box-shadow:var(--sh);backdrop-fi
 /* hover menu under each received card (tilts with the card) */
 .bmn{position:absolute;left:50%;top:calc(100% + 12px);z-index:5;min-width:190px;padding:6px;border-radius:14px;background:var(--pn);border:1px solid var(--ln);box-shadow:var(--sh);backdrop-filter:blur(22px) saturate(1.3);-webkit-backdrop-filter:blur(22px) saturate(1.3);
 opacity:0;pointer-events:none;transform:translate(-50%,-6px) scale(.97);transform-origin:50% 0;transition:opacity .18s,transform .28s cubic-bezier(.34,1.56,.64,1)}
-.bmn::before{content:"";position:absolute;left:0;right:0;top:-14px;height:14px}
+.bmn::before{content:"";position:absolute;left:-12px;right:-12px;top:-18px;height:18px}
 .bci.up .bmn{top:auto;bottom:calc(100% + 12px);transform-origin:50% 100%;transform:translate(-50%,6px) scale(.97)}
-.bci.up .bmn::before{top:auto;bottom:-14px}
+.bci.up .bmn::before{top:auto;bottom:-18px}
 :root[data-theme="light"] .bmn{background:rgba(255,255,255,.94)}
 :root[data-theme="dark"] .bmn{background:rgba(23,27,34,.96)}
-@media (hover:hover){.bci:hover{z-index:999!important}.bci:hover .bmn{opacity:1;pointer-events:auto;transform:translate(-50%,0)}}
-.bci:focus-within{z-index:999!important}
-.bci:focus-within .bmn{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
-.bci.shut .bmn{opacity:0!important;pointer-events:none!important}
+.bci.open,.bci:focus-within{z-index:999!important}
+.bci.open .bmn,.bci:focus-within .bmn{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+.bci.pinned .bmn{box-shadow:0 0 0 1.5px var(--acc2),var(--sh)}
 .bv .bmx{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:transparent;border-radius:9px;padding:8px 12px;font-size:12.5px;backdrop-filter:none;-webkit-backdrop-filter:none;white-space:nowrap}
 .bv .bmx:hover{background:var(--btn);border:0}
 .bv .bmx,.bv .bmx span{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:500;letter-spacing:0;color:inherit}
@@ -2636,18 +2635,21 @@ const MI={
   keep:'<path d="M4.5 2.5h7v11L8 11l-3.5 2.5z"/>',
   del:'<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 9h5.8l.6-9"/>',
   link:'<path d="M9 3h4v4M13 3L7.5 8.5"/><path d="M11 9.5V13H3V5h3.5"/>'};
+function closeMenus(){barc.querySelectorAll('.bci.open,.bci.pinned').forEach(x=>x.classList.remove('open','pinned'));if(document.activeElement&&barc.contains(document.activeElement))document.activeElement.blur()}
+// a pinned (right-click) menu stays until you pick something, click elsewhere or press Esc
+addEventListener('pointerdown',e=>{if(state==='beam'&&!e.target.closest('.bci'))closeMenus()},true);
 function fillMenu(m,it){
   m.innerHTML='';
   const add=(ic,t,fn,cls,dis)=>{const b=el('bmx'+(cls?' '+cls:''),m,'button');b.type='button';b.setAttribute('role','menuitem');b.innerHTML='<svg viewBox="0 0 16 16" aria-hidden="true">'+MI[ic]+'</svg>';el('',b,'span').textContent=t;b.disabled=!!dis;b.addEventListener('click',e=>{e.stopPropagation();fn(b)})};
-  if(it.url)add('link','Open in new tab',()=>openLink(it.url));
+  if(it.url)add('link','Open in new tab',()=>{closeMenus();openLink(it.url)});
   else{
     const sh=shelves[shelfFor(it)];
     add('save',it.saved?'Saved to '+it.saved:'Save to My Files · '+(sh?sh.name:'Files'),async b=>{b.disabled=true;if(await saveToShelf(it,shelfFor(it)))toast('Saved to '+it.saved);fillMenu(m,it)},'',!!it.saved);
-    add('pc',DL_LABEL,()=>dlItem(it));
+    add('pc',DL_LABEL,()=>{closeMenus();dlItem(it)});
   }
-  add('keep','Keep in Beam',()=>{m.parentNode.classList.add('shut');if(document.activeElement)document.activeElement.blur();toast('Kept in Beam')});
+  add('keep','Keep in Beam',()=>{closeMenus();toast('Kept in Beam')});
   el('bmsep',m);
-  add('del','Delete',()=>delItem(it),'danger');
+  add('del','Delete',()=>{closeMenus();delItem(it)},'danger');
 }
 function renderArc(){
   const want=bItems.slice(0,SPREAD_MAX).reverse();
@@ -2658,11 +2660,15 @@ function renderArc(){
       w=el('bci',null);w.dataset.id=it.id;
       const c=el('bc',w,'button');c.type='button';c.setAttribute('aria-label',(it.url?'Link ':'')+it.name+', from '+it.from+'. Open');
       const cap=el('bcap',c,'span');el('',cap,'b').textContent=it.url?it.url:it.name;el('',cap,'i').textContent=(it.url?'Link':fmtSize(it.size))+' · from '+it.from;
-      c.addEventListener('click',()=>openPrev(it.id,c));itemUrl(it).then(u=>face(c,it,u));
+      c.addEventListener('click',()=>{closeMenus();openPrev(it.id,c)});itemUrl(it).then(u=>face(c,it,u));
       const m=el('bmn',w);m.setAttribute('role','menu');m.setAttribute('aria-label','Options for '+it.name);
       const prep=()=>{const cur=bItems.find(x=>x.id===it.id);if(cur)fillMenu(m,cur);const r=w.getBoundingClientRect(),vb=bv.getBoundingClientRect();w.classList.toggle('up',r.bottom+200>vb.bottom)};
-      w.addEventListener('pointerenter',prep);w.addEventListener('focusin',e=>{if(e.target===c)prep()});
-      w.addEventListener('pointerleave',()=>w.classList.remove('shut'));
+      let t=0;
+      const open=()=>{clearTimeout(t);barc.querySelectorAll('.bci.open').forEach(x=>{if(x!==w)x.classList.remove('open','pinned')});if(!w.classList.contains('open'))prep();w.classList.add('open')};
+      w.addEventListener('pointerenter',e=>{if(e.pointerType==='mouse'&&!barc.querySelector('.bci.pinned:not([data-id="'+it.id+'"])'))open()});
+      w.addEventListener('pointerleave',e=>{if(e.pointerType!=='mouse'||w.classList.contains('pinned'))return;clearTimeout(t);t=setTimeout(()=>{if(!w.matches(':hover'))w.classList.remove('open')},450)});
+      w.addEventListener('contextmenu',e=>{e.preventDefault();e.stopPropagation();open();w.classList.add('pinned');const f=m.querySelector('.bmx:not(:disabled)');if(f)f.focus({preventScroll:true})});
+      w.addEventListener('focusin',e=>{if(e.target===c)prep()});
     }
     barc.appendChild(w);
   });
@@ -2877,7 +2883,7 @@ function renderBeam(){
 }
 function beamKey(e){
   if(e.key!=='Escape')return;
-  if(!B('bsave').hidden){e.preventDefault();doneSavePrompt()}else if(!B('bopen').hidden){e.preventDefault();B('bopen').hidden=true;setTimeout(nextSavePrompt,250)}else if(!B('blnk').hidden){e.preventDefault();B('blnk').hidden=true}else if(!bprev.hidden){e.preventDefault();closePrev()}else if(!bbox.hidden){e.preventDefault();bbox.hidden=true}
+  if(barc.querySelector('.bci.open,.bci.pinned')){e.preventDefault();closeMenus()}else if(!B('bsave').hidden){e.preventDefault();doneSavePrompt()}else if(!B('bopen').hidden){e.preventDefault();B('bopen').hidden=true;setTimeout(nextSavePrompt,250)}else if(!B('blnk').hidden){e.preventDefault();B('blnk').hidden=true}else if(!bprev.hidden){e.preventDefault();closePrev()}else if(!bbox.hidden){e.preventDefault();bbox.hidden=true}
 }
 // files dropped onto the Beam screen are queued to send
 function beamDrag(e){if(IS_PHONE)return;e.preventDefault();e.dataTransfer.dropEffect=live()?'copy':'none';bv.classList.toggle('dropping',live()&&e.type!=='dragleave'&&e.type!=='drop')}
