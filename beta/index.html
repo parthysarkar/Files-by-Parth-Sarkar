@@ -564,8 +564,8 @@ background:var(--pn);border:1px solid var(--ln);box-shadow:var(--sh);backdrop-fi
 .btag span{display:block;margin-top:6px;font-size:13px;color:var(--m)}
 .bstage.has .btag{opacity:0}
 .barc{position:absolute;left:50%;top:50%;width:0;height:0}
-.bc{position:absolute;left:0;top:0;width:var(--cw,150px);height:calc(var(--cw,150px)*1.28);padding:0;border-radius:6px;cursor:pointer;overflow:hidden;
-transition:transform .75s cubic-bezier(.2,.8,.2,1),box-shadow .3s;transform-origin:50% 50%}
+.bci{position:absolute;left:0;top:0;width:var(--cw,150px);height:calc(var(--cw,150px)*1.28);transform-origin:50% 50%;transition:transform .75s cubic-bezier(.2,.8,.2,1)}
+.bc{position:absolute;inset:0;width:100%;height:100%;padding:0;border-radius:6px;cursor:pointer;overflow:hidden;transition:box-shadow .3s}
 .bv .bc{padding:0;border:1px solid var(--ln2);border-radius:6px;background:var(--pns) center/cover no-repeat;box-shadow:var(--sh);backdrop-filter:none;-webkit-backdrop-filter:none}
 .bv .bc:hover{border-color:var(--ln2);box-shadow:0 34px 60px -24px rgba(0,0,0,.55)}
 .bc::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(155deg,rgba(255,255,255,.22),transparent 38%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.18)}
@@ -676,6 +676,27 @@ transition:transform .75s cubic-bezier(.2,.8,.2,1),box-shadow .3s;transform-orig
 #bstk2{transform:rotate(6deg) translate(12px,10px)}
 .bcount{position:absolute;top:10px;right:10px;z-index:3;padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(10,12,20,.62);color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .bv .bs.sent::after{content:"";position:absolute;right:3px;top:3px;z-index:2;width:13px;height:13px;border-radius:50%;background:#2fbf71 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.3l2.3 2.2 4.7-4.8' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/10px no-repeat}
+
+/* hover menu under each received card (tilts with the card) */
+.bmn{position:absolute;left:50%;top:calc(100% + 12px);z-index:5;min-width:190px;padding:6px;border-radius:14px;background:var(--pn);border:1px solid var(--ln);box-shadow:var(--sh);backdrop-filter:blur(22px) saturate(1.3);-webkit-backdrop-filter:blur(22px) saturate(1.3);
+opacity:0;pointer-events:none;transform:translate(-50%,-6px) scale(.97);transform-origin:50% 0;transition:opacity .18s,transform .28s cubic-bezier(.34,1.56,.64,1)}
+.bmn::before{content:"";position:absolute;left:0;right:0;top:-14px;height:14px}
+.bci.up .bmn{top:auto;bottom:calc(100% + 12px);transform-origin:50% 100%;transform:translate(-50%,6px) scale(.97)}
+.bci.up .bmn::before{top:auto;bottom:-14px}
+:root[data-theme="light"] .bmn{background:rgba(255,255,255,.94)}
+:root[data-theme="dark"] .bmn{background:rgba(23,27,34,.96)}
+@media (hover:hover){.bci:hover{z-index:999!important}.bci:hover .bmn{opacity:1;pointer-events:auto;transform:translate(-50%,0)}}
+.bci:focus-within{z-index:999!important}
+.bci:focus-within .bmn{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+.bci.shut .bmn{opacity:0!important;pointer-events:none!important}
+.bv .bmx{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:transparent;border-radius:9px;padding:8px 12px;font-size:12.5px;backdrop-filter:none;-webkit-backdrop-filter:none;white-space:nowrap}
+.bv .bmx:hover{background:var(--btn);border:0}
+.bv .bmx,.bv .bmx span{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-weight:500;letter-spacing:0;color:inherit}
+.bv .bmx.danger span{color:#e5484d}
+.bv .bmx:disabled{opacity:.6}
+.bv .bmx.danger{color:#e5484d}
+.bmx svg{flex:none;width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+.bmsep{height:1px;margin:4px 6px;background:var(--ln)}
 @media (max-width:560px){.bhead{padding:12px 14px}.bpt{font-size:21px}.bpc{padding:24px 18px 20px}.bdock{margin:0 10px 10px}}
 @media (prefers-reduced-motion:reduce){.bspin{animation:none}.bc{transition:none}}
 </style>
@@ -2609,15 +2630,41 @@ function layoutArc(){
     c.style.transform='translate(-50%,-50%) translate('+x.toFixed(1)+'px,'+y.toFixed(1)+'px) rotate('+rot.toFixed(1)+'deg)';c.style.zIndex=i+1;
   });
 }
+const MI={
+  save:'<path d="M3 4.5h10v8.5H3z"/><path d="M5.5 4.5V3h5v1.5M6 8.5l1.6 1.6L10.5 7"/>',
+  pc:'<path d="M8 2.5v7.5M5 7.2l3 3 3-3"/><path d="M3 11.5v2h10v-2"/>',
+  keep:'<path d="M4.5 2.5h7v11L8 11l-3.5 2.5z"/>',
+  del:'<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 9h5.8l.6-9"/>',
+  link:'<path d="M9 3h4v4M13 3L7.5 8.5"/><path d="M11 9.5V13H3V5h3.5"/>'};
+function fillMenu(m,it){
+  m.innerHTML='';
+  const add=(ic,t,fn,cls,dis)=>{const b=el('bmx'+(cls?' '+cls:''),m,'button');b.type='button';b.setAttribute('role','menuitem');b.innerHTML='<svg viewBox="0 0 16 16" aria-hidden="true">'+MI[ic]+'</svg>';el('',b,'span').textContent=t;b.disabled=!!dis;b.addEventListener('click',e=>{e.stopPropagation();fn(b)})};
+  if(it.url)add('link','Open in new tab',()=>openLink(it.url));
+  else{
+    const sh=shelves[shelfFor(it)];
+    add('save',it.saved?'Saved to '+it.saved:'Save to My Files · '+(sh?sh.name:'Files'),async b=>{b.disabled=true;if(await saveToShelf(it,shelfFor(it)))toast('Saved to '+it.saved);fillMenu(m,it)},'',!!it.saved);
+    add('pc',DL_LABEL,()=>dlItem(it));
+  }
+  add('keep','Keep in Beam',()=>{m.parentNode.classList.add('shut');if(document.activeElement)document.activeElement.blur();toast('Kept in Beam')});
+  el('bmsep',m);
+  add('del','Delete',()=>delItem(it),'danger');
+}
 function renderArc(){
   const want=bItems.slice(0,SPREAD_MAX).reverse();
   [...barc.children].forEach(c=>{if(!want.some(x=>x.id===c.dataset.id))c.remove()});
   want.forEach(it=>{
-    let c=barc.querySelector('[data-id="'+it.id+'"]');
-    if(!c){c=document.createElement('button');c.type='button';c.className='bc';c.dataset.id=it.id;c.setAttribute('aria-label',(it.url?'Link ':'')+it.name+', from '+it.from);
+    let w=barc.querySelector('[data-id="'+it.id+'"]');
+    if(!w){
+      w=el('bci',null);w.dataset.id=it.id;
+      const c=el('bc',w,'button');c.type='button';c.setAttribute('aria-label',(it.url?'Link ':'')+it.name+', from '+it.from+'. Open');
       const cap=el('bcap',c,'span');el('',cap,'b').textContent=it.url?it.url:it.name;el('',cap,'i').textContent=(it.url?'Link':fmtSize(it.size))+' · from '+it.from;
-      c.addEventListener('click',()=>openPrev(it.id,c));itemUrl(it).then(u=>face(c,it,u))}
-    barc.appendChild(c);
+      c.addEventListener('click',()=>openPrev(it.id,c));itemUrl(it).then(u=>face(c,it,u));
+      const m=el('bmn',w);m.setAttribute('role','menu');m.setAttribute('aria-label','Options for '+it.name);
+      const prep=()=>{const cur=bItems.find(x=>x.id===it.id);if(cur)fillMenu(m,cur);const r=w.getBoundingClientRect(),vb=bv.getBoundingClientRect();w.classList.toggle('up',r.bottom+200>vb.bottom)};
+      w.addEventListener('pointerenter',prep);w.addEventListener('focusin',e=>{if(e.target===c)prep()});
+      w.addEventListener('pointerleave',()=>w.classList.remove('shut'));
+    }
+    barc.appendChild(w);
   });
   B('bmore').textContent=bItems.length>SPREAD_MAX?'+'+(bItems.length-SPREAD_MAX)+' more in Received':'';
   layoutArc();
@@ -2753,11 +2800,12 @@ function closePrev(){bprev.hidden=true;const v=B('bpmw').querySelector('video,au
 B('bpx').addEventListener('click',closePrev);bprev.addEventListener('pointerdown',e=>{if(e.target===bprev)closePrev()});
 async function dlItem(it){try{const b=await getBlob('blobs',it.id);if(b&&await download(b,it.name))toast('Downloading '+it.name)}catch(e){toast('Download failed')}}
 B('bpdl').addEventListener('click',()=>{const it=bItems.find(x=>x.id===prevId);if(it)it.url?openLink(it.url):dlItem(it)});
-B('bpdel').addEventListener('click',async()=>{
-  const i=bItems.findIndex(x=>x.id===prevId);if(i<0)return;const it=bItems[i];bItems.splice(i,1);saveItems();
+async function delItem(it){
+  const i=bItems.findIndex(x=>x.id===it.id);if(i<0)return;bItems.splice(i,1);saveItems();
   try{await delBlob('blobs',it.id)}catch(e){}const u=bUrls.get(it.id);if(u){URL.revokeObjectURL(u);bUrls.delete(it.id)}
-  closePrev();binb.textContent='Received ('+bItems.length+')';if(!IS_PHONE)renderArc();if(!bbox.hidden)renderList();toast('Deleted');
-});
+  if(prevId===it.id)closePrev();binb.textContent='Received ('+bItems.length+')';if(!IS_PHONE)renderArc();if(!bbox.hidden)renderList();toast('Deleted '+it.name);
+}
+B('bpdel').addEventListener('click',()=>{const it=bItems.find(x=>x.id===prevId);if(it)delItem(it)});
 B('bdisc').addEventListener('click',()=>{try{dc&&dc.send(JSON.stringify({t:'bye'}))}catch(e){}closePeer(true);motionOff();pairHome('Disconnected.')});
 
 // ---- keep received files: save them into My Files, or onto the computer ----
@@ -2800,7 +2848,6 @@ let savePending=[],saveSel=0;
 function afterReceive(it){
   if(it.url)return;
   if(autoSave){autoSaveItem(it);return}
-  savePending.push(it.id);if(state==='beam')nextSavePrompt();
 }
 function nextSavePrompt(){
   if(state!=='beam'||!B('bsave').hidden||!B('bopen').hidden)return;
