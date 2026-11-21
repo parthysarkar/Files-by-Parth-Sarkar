@@ -2418,7 +2418,7 @@ function pairHome(msg){
   stopScan();
   pairView(msg||'Send files between your phone and computer. Both need to be on the same Wi-Fi.',null,
     [['Show my code',hostStart,true],['Scan a code',()=>scanView('join')]],
-    IS_PHONE?'Tip: tap Show my code on your computer and scan it with your phone’s camera app.':'Tip: tap Show my code here, then scan it with your phone’s camera app.');
+    IS_PHONE?'Tip: tap Show my code on your computer and scan it with your phone’s camera app. That’s all it takes.':'Tip: tap Show my code here, then scan it with your phone’s camera app. One scan, nothing to type.');
 }
 function spinStep(text){return s=>{el('bspin',s);el('bline',s).textContent=text}}
 function qrStep(text,line,big){return s=>{const w=el('bqr',s);const cv=el('',w,'canvas');drawQR(cv,text,big?'L':'M');const n=big?Math.min(380,innerWidth-100,innerHeight-300):Math.min(300,innerWidth-110);w.style.width=n+'px';const p=el('bline',s);p.innerHTML=line}}
@@ -2452,12 +2452,27 @@ async function scanView(mode){
 }
 function stopScan(){scanOn=false;cancelAnimationFrame(scanRaf);if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}}
 function onScanned(txt){
-  const m=txt.match(/[#&]beam=([^&\s]+)/);
-  if(m){stopScan();if(navigator.vibrate)navigator.vibrate(15);guestStart(decodeURIComponent(m[1]));return}
+  const j=parseJoin(txt);
+  if(j){stopScan();if(navigator.vibrate)navigator.vibrate(15);guestStart(j.o,j);return}
   if(txt.startsWith('MFBEAM:')){if(role!=='host'||!pc){return}stopScan();if(navigator.vibrate)navigator.vibrate(15);hostFinish(txt.slice(7));return}
 }
+// ---- one-scan pairing: the phone hands its reply back through a public relay, encrypted with a key from the QR ----
+const RELAY='https://ntfy.sh/';
+const b64u={enc:a=>btoa(String.fromCharCode(...new Uint8Array(a))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''),dec:s=>{s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),c=>c.charCodeAt(0))}};
+const canRelay=()=>!!(window.crypto&&crypto.subtle&&window.EventSource&&window.fetch);
+const relayKey=raw=>crypto.subtle.importKey('raw',raw,'AES-GCM',false,['encrypt','decrypt']);
+async function seal(raw,text){const k=await relayKey(raw),iv=crypto.getRandomValues(new Uint8Array(12));return b64u.enc(iv)+'.'+b64u.enc(await crypto.subtle.encrypt({name:'AES-GCM',iv},k,new TextEncoder().encode(text)))}
+async function unseal(raw,s){const [a,b]=String(s).split('.');const k=await relayKey(raw);return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:b64u.dec(a)},k,b64u.dec(b)))}
+let relayES=null;
+function relayStop(){if(relayES){relayES.close();relayES=null}}
+function relayListen(room,raw,onText){
+  relayStop();
+  try{relayES=new EventSource(RELAY+'myfiles-'+room+'/sse?since='+(Math.floor(Date.now()/1000)-30));
+    relayES.onmessage=async e=>{let j;try{j=JSON.parse(e.data)}catch(_){return}if(j.event&&j.event!=='message')return;try{onText(await unseal(raw,j.message||''))}catch(_){}}}catch(e){}
+}
+async function relaySend(room,raw,text){const r=await fetch(RELAY+'myfiles-'+room,{method:'POST',body:await seal(raw,text)});if(!r.ok)throw new Error('relay '+r.status)}
 // ---- WebRTC with tiny QR-friendly descriptions ----
-let pc=null,dc=null,role='',peerName='',offerTxt='',linkT=0;
+let pc=null,dc=null,role='',peerName='',offerTxt='',linkT=0,fallT=0;
 const ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
 function gathered(p){if(p.iceGatheringState==='complete')return Promise.resolve();return new Promise(r=>{const t=setTimeout(r,2500);p.addEventListener('icegatheringstatechange',()=>{if(p.iceGatheringState==='complete'){clearTimeout(t);r()}})})}
 function packSDP(sdp,kind){
@@ -2478,7 +2493,7 @@ function unpackSDP(s){
   return{name:name||'Device',desc:{type:k==='o'?'offer':'answer',sdp}};
 }
 function closePeer(silent){
-  clearTimeout(linkT);sendQ=Promise.resolve();acks.forEach(r=>r(false));acks.clear();rx=null;
+  clearTimeout(linkT);clearTimeout(fallT);relayStop();sendQ=Promise.resolve();acks.forEach(r=>r(false));acks.clear();rx=null;
   if(dc){dc.onclose=null;try{dc.close()}catch(e){}}if(pc){pc.onconnectionstatechange=null;try{pc.close()}catch(e){}}dc=null;pc=null;role='';
   if(!silent)renderBeam();
 }
@@ -2495,35 +2510,46 @@ async function hostStart(){
     newPC();role='host';dc=pc.createDataChannel('beam',{ordered:true});wireDC();
     await pc.setLocalDescription(await pc.createOffer());await gathered(pc);
     offerTxt=location.origin+location.pathname+'#beam='+encodeURIComponent(packSDP(pc.localDescription.sdp,'o'));
+    if(canRelay()){const room=b64u.enc(crypto.getRandomValues(new Uint8Array(12))),raw=crypto.getRandomValues(new Uint8Array(16));offerTxt+='&r='+room+'&k='+b64u.enc(raw);
+      relayListen(room,raw,t=>{if(t.startsWith('MFBEAM:')&&role==='host'&&pc&&!pc.remoteDescription){relayStop();stopScan();if(navigator.vibrate)navigator.vibrate(15);hostFinish(t.slice(7))}})}
     if(state==='beam')hostShow();
   }catch(e){closePeer(true);pairHome('Couldn’t start pairing in this browser.')}
 }
 function hostShow(){
   if(role!=='host'||!pc){pairHome();return}
-  pairView('Step 1: scan this with the other device.',qrStep(offerTxt,'On a phone, just use the <b>camera app</b>. It opens My Files and shows a code back.'),
-    [['Step 2: scan their code',()=>scanView('answer'),true],['Cancel',()=>{closePeer(true);pairHome()}]]);
+  pairView('Scan this with your phone’s camera.',qrStep(offerTxt,'Use the <b>camera app</b>. My Files opens on the phone and connects by itself. Both devices need the same Wi-Fi.'),
+    [['Cancel',()=>{closePeer(true);pairHome()}],['No internet? Scan the phone’s code',()=>scanView('answer')]]);
 }
 async function hostFinish(txt){
   pairView('Connecting…',spinStep('Linking the two devices'));
   try{const a=unpackSDP(txt);peerName=a.name;await pc.setRemoteDescription(a.desc);waitLink()}catch(e){closePeer(true);pairHome('That code didn’t work. Try pairing again.')}
 }
-async function guestStart(txt){
+function guestQR(ans,lead){
+  pairView(lead||'Step 2: show this to the other device.',qrStep(ans,'Turn your screen brightness up. Tap <b>No internet? Scan the phone’s code</b> on '+esc(peerName)+' and hold this about 20 cm from its camera.',true),[['Cancel',()=>{closePeer(true);pairHome()}]]);
+  clearTimeout(linkT);linkT=setTimeout(()=>{if(!dc||dc.readyState!=='open')linkFail()},90000);
+}
+async function guestStart(txt,j){
   if(!window.RTCPeerConnection){pairHome('This browser can’t beam files.');return}
-  closePeer(true);pairView('Connecting…',spinStep('Getting a code ready'));
+  closePeer(true);pairView('Connecting…',spinStep('Getting ready'));
   try{
     const o=unpackSDP(txt);peerName=o.name;newPC();role='guest';
     pc.ondatachannel=e=>{dc=e.channel;wireDC()};
     await pc.setRemoteDescription(o.desc);await pc.setLocalDescription(await pc.createAnswer());await gathered(pc);
     const ans='MFBEAM:'+packSDP(pc.localDescription.sdp,'a');
-    pairView('Step 2: show this to the other device.',qrStep(ans,'Turn your screen brightness up. Tap <b>Step 2</b> on '+esc(peerName)+' and hold this about 20 cm from its camera.',true),[['Cancel',()=>{closePeer(true);pairHome()}]]);
-    waitLink();
+    if(j&&j.r&&j.k&&canRelay()){
+      pairView('Connecting to '+peerName+'…',spinStep('Sending a secure handshake'));
+      try{await relaySend(j.r,b64u.dec(j.k),ans);waitLink();clearTimeout(fallT);fallT=setTimeout(()=>{if(role==='guest'&&(!dc||dc.readyState!=='open'))guestQR(ans,'Taking a while? Show this code instead.')},12000)}
+      catch(e){guestQR(ans,'Couldn’t reach the internet. Show this code instead.')}
+      return;
+    }
+    guestQR(ans);
   }catch(e){closePeer(true);pairHome('That code didn’t work. Try pairing again.')}
 }
 // ---- sending and receiving ----
 let sendQ=Promise.resolve(),rx=null;const acks=new Map();const CH=16384;
 function wireDC(){
   dc.binaryType='arraybuffer';dc.bufferedAmountLowThreshold=1<<20;
-  dc.onopen=()=>{clearTimeout(linkT);try{dc.send(JSON.stringify({t:'hi',name:DEV}))}catch(e){}renderBeam();if(navigator.vibrate)navigator.vibrate([10,40,10]);flip(1);if(state!=='beam')toast('Beam connected to '+peerName)};
+  dc.onopen=()=>{clearTimeout(linkT);clearTimeout(fallT);relayStop();try{dc.send(JSON.stringify({t:'hi',name:DEV}))}catch(e){}renderBeam();if(navigator.vibrate)navigator.vibrate([10,40,10]);flip(1);if(state!=='beam')toast('Beam connected to '+peerName)};
   dc.onclose=()=>linkFail();
   dc.onmessage=e=>{
     if(typeof e.data==='string'){
@@ -2889,10 +2915,11 @@ function beamKey(e){
 function beamDrag(e){if(IS_PHONE)return;e.preventDefault();e.dataTransfer.dropEffect=live()?'copy':'none';bv.classList.toggle('dropping',live()&&e.type!=='dragleave'&&e.type!=='drop')}
 function beamDrop(e){e.preventDefault();bv.classList.remove('dropping');if(!live()){toast('Pair a device first');return}addOut([...e.dataTransfer.files]);toast('Drag a card up to throw it')}
 // opened from a pairing QR code: go straight to the Beam tab and connect
-const beamJoin=(()=>{const m=location.hash.match(/[#&]beam=([^&]+)/);if(!m)return null;try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}return decodeURIComponent(m[1])})();
+function parseJoin(t){const g=k=>{const m=t.match(new RegExp('[#&]'+k+'=([^&\\s]+)'));return m?decodeURIComponent(m[1]):null};const o=g('beam');return o?{o,r:g('r'),k:g('k')}:null}
+const beamJoin=(()=>{const j=parseJoin(location.hash);if(!j)return null;try{history.replaceState(null,'',location.pathname+location.search)}catch(e){}return j})();
 rebuildPeeks(null);
 {let v0=null;try{v0=localStorage.getItem('myfiles-view')}catch(e){}if(v0!=='tray')showShelves(true);else{document.body.classList.remove('atshelves')}}
-if(beamJoin){showTab(true);guestStart(beamJoin)}
+if(beamJoin){showTab(true);guestStart(beamJoin.o,beamJoin)}
 $('#read').textContent=matchMedia('(hover:none)').matches?'Tap a file to open it. Press and hold for more options. Swipe to change folders.':'Click a file to open it. Right-click for more options. Your files stay in this browser only.';
 requestAnimationFrame(tick);
 })();
