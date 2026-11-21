@@ -31,12 +31,12 @@ To go back to the shelves, press **Esc** or click **‹ Shelves** at the top lef
 Open the **Beam** tab on both devices (same Wi-Fi).
 
 1. On your computer, tap **Show my code**. Scan it with your phone's camera app.
-2. Your phone shows a code back. On the computer tap **Step 2** and hold the phone up to its camera.
+2. My Files opens on the phone and connects by itself. No typing, no second scan. (Offline? The phone shows a code instead; tap **No internet? Scan the phone's code** on the computer.)
 3. Connected! On the phone, pick a file and **flick your phone** (or swipe the card up). On the computer, **drag a file up** to throw it to the phone.
 
 To send a link, tap **Send a link** (or paste one on the computer). The other device asks before opening it in a new tab.
 
-Each received file asks where to go: **Save to My Files** (pick a shelf) or **Save to computer**. Turn on **Auto-save** to skip the question: photos and videos go to *Photos & Videos*, everything else to *Files*. Received files also stay in the Beam tab. Files go straight between the two devices, encrypted, and never through a server.
+Received files land in the Beam tab. Hover a file (or right-click it) for **Save to My Files**, **Save to computer**, **Keep in Beam** or **Delete**. Turn on **Auto-save** to save everything as it arrives: photos and videos go to *Photos & Videos*, everything else to *Files*. Files go straight between the two devices, encrypted, and never through a server. Only the encrypted connection handshake passes through a public relay.
 
 ## Keep your files safe
 
