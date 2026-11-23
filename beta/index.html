@@ -402,7 +402,7 @@ border-left:.75em solid var(--post);border-right:.75em solid var(--post);box-sha
 .lvl{position:relative;flex:1;min-height:0;background:linear-gradient(180deg,color-mix(in srgb,var(--led) 55%,transparent),transparent 42%);
 box-shadow:inset 1.1em 0 1.2em -1em rgba(0,0,0,.18),inset -1.1em 0 1.2em -1em rgba(0,0,0,.18)}
 .lvl::after{content:"";position:absolute;left:-.75em;right:-.75em;bottom:0;height:1.05em;background:var(--board);border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);box-shadow:0 .35em .6em -.2em rgba(0,0,0,.28),inset 0 .25em 0 rgba(255,255,255,.18);z-index:1}
-.grp{all:unset;box-sizing:border-box;position:absolute;left:var(--sx,.6em);width:11em;top:.6em;bottom:1.17em;cursor:pointer;z-index:2;border-radius:.3em}
+.grp{all:unset;box-sizing:border-box;position:absolute;left:calc(.6em + var(--sx,0) * var(--ts,1em));width:calc(var(--w,11) * var(--ts,1em));top:.6em;bottom:1.17em;cursor:pointer;z-index:2;border-radius:.3em}
 /* a folder seen side-on: a box with its name, files standing behind it as leaning lines */
 .mt{position:absolute;left:0;right:0;bottom:0;height:100%;font-size:var(--ts,1em);--tl:var(--line2);--tbox:var(--card)}
 :root[data-theme="glass"] .mt{--tbox:rgba(255,255,255,.88)}
@@ -421,6 +421,13 @@ transform:rotate(var(--a));transition:transform .45s cubic-bezier(.34,1.56,.64,1
 :root[data-theme^="glass"] .ln:not(.kf){background:hsl(var(--hue,220) 70% 55%)}
 :root[data-theme="glassdark"] .ln:not(.kf){background:hsl(var(--hue,220) 85% 75%)}
 .grp:focus-visible{outline:2px solid var(--acc);outline-offset:.2em}
+/* only shows when a shelf has more folders than fit */
+.smore{all:unset;box-sizing:border-box;position:absolute;right:.6em;bottom:calc(1.17em + .3em);z-index:3;width:calc(2.4 * var(--ts,1em));height:calc(2.4 * var(--ts,1em));border-radius:50%;display:grid;place-items:center;cursor:pointer;background:var(--card);border:1px solid var(--line2);color:var(--signtx);font:500 calc(1.6 * var(--ts,1em))/1 system-ui,sans-serif;box-shadow:0 .45em .8em -.45em rgba(0,0,0,.3);transition:transform .3s cubic-bezier(.34,1.56,.64,1)}
+.smore[hidden]{display:none}
+:root[data-theme="glass"] .smore{background:rgba(255,255,255,.88)}:root[data-theme="glassdark"] .smore{background:rgba(40,46,78,.92)}
+.smore:hover,.smore:focus-visible{transform:scale(1.12)}.smore:focus-visible{outline:2px solid var(--acc);outline-offset:.2em}
+.smore .gtag{left:auto;right:0;transform:translate(0,.4em) scale(.9);font-size:calc(.75em)}
+.smore:hover .gtag,.smore:focus-visible .gtag{opacity:1;transform:none}
 .more{align-self:center;margin:0 auto 1.2em;font:600 1.15em/1 system-ui,sans-serif;color:var(--signtx);opacity:.75;padding:.5em .9em;border:1px dashed var(--line2);border-radius:.5em}
 .gtag{position:absolute;left:50%;bottom:calc(100% + .3em);z-index:4;transform:translate(-50%,.4em) scale(.9);opacity:0;pointer-events:none;white-space:nowrap;padding:.35em .8em;border-radius:99em;
 font:600 1.1em/1.3 system-ui,sans-serif;background:var(--text);color:var(--bg);box-shadow:0 .5em 1.4em rgba(0,0,0,.25);transition:opacity .2s,transform .35s cubic-bezier(.34,1.56,.64,1)}
@@ -1686,7 +1693,7 @@ addEventListener('dragover',e=>{if(!hasFiles(e))return;if(state==='beam'){beamDr
 addEventListener('dragleave',e=>{if(!hasFiles(e))return;if(state==='beam'){dragN=Math.max(0,dragN-1);if(!dragN)bv.classList.remove('dropping');return}dragN=Math.max(0,dragN-1);if(!dragN){dropEl.classList.remove('on');markDrop(null)}});
 addEventListener('drop',e=>{if(!hasFiles(e))return;if(state==='beam'){dragN=0;beamDrop(e);return}e.preventDefault();dragN=0;dropEl.classList.remove('on');
   if(state==='shelves'){const u=dropU||unitAt(e.clientX,e.clientY);markDrop(null);if(!u){toast('Drop the files onto a shelf');return}
-    const list=[...e.dataTransfer.files],i=+u.dataset.i,k=lastFolder[shelves[i].id]||0;openShelf(i,k,u.querySelector('.grp[data-k="'+Math.min(k,7)+'"]'));
+    const list=[...e.dataTransfer.files],i=+u.dataset.i,k=lastFolder[shelves[i].id]||0;openShelf(i,k,gFor(u,k));
     const iv2=setInterval(()=>{if(state==='tray'){clearInterval(iv2);addFiles(list)}},120);return}
   addFiles(e.dataTransfer.files)});
 
@@ -2143,27 +2150,44 @@ function buildShelves(){
     u.querySelector('.suse').textContent=fmtSize(usage(D))+' used · '+real+(real===1?' file':' files');
     const bay=u.querySelector('.bay'),cap=L*2,starts=[];let a=0;for(let k=0;k<T;k++){starts.push(a);a+=D.sizes[k]}
     u.dataset.L=L;
-    for(let r=0;r<L;r++){
-      const lv=el('lvl',bay);
-      for(let c=0;c<2;c++){
-        const k=r*2+c;if(k>=T)break;
-        if(k===cap-1&&T>cap){const m=el('grp',lv,'button');m.type='button';m.dataset.k=k;m.style.setProperty('--sx',(.6+c*11.3)+'em');m.style.display='grid';m.style.placeItems='center';el('more',m,'span').textContent='+'+(T-k)+' more';m.setAttribute('aria-label','More folders on '+s.name);continue}
-        const g=el('grp',lv,'button');g.type='button';g.dataset.k=k;g.style.setProperty('--sx',(.6+c*11.3)+'em');
-        const cnt=D.sizes[k],nm=D.names[k]||'Folder '+(k+1),s0=starts[k];
+    const lvs=[];for(let r=0;r<L;r++)lvs.push(el('lvl',bay));
+    for(let k=0;k<T;k++){{
+        const lv=lvs[0];
+        const g=el('grp',lv,'button');g.type='button';g.dataset.k=k;
+        const cnt=D.sizes[k],nm=D.names[k]||'Folder '+(k+1),s0=starts[k],w=folderW(nm);g.dataset.w=w;
+        const sp=Math.min(Math.max(.4,w-3.3),(5*cnt+6)*.115);
         g.setAttribute('aria-label',nm+', '+cnt+(cnt===1?' file':' files')+', on '+s.name);
-        const mt=el('mt',g,'span'),span=Math.min(70,5*cnt+6);
+        const mt=el('mt',g,'span');
         for(let j=0;j<cnt;j++){
           const f=D.saved[s0+j],ln=el('ln',mt,'i'),t=cnt>1?j/(cnt-1):0;
-          ln.style.cssText='--x:'+(14+t*span).toFixed(1)+';--a:'+(24-t*10).toFixed(1)+'deg;--h:'+(5.4-t*.4+((j*7)%3)*.12).toFixed(2)+'em;--j:'+j+';--hue:'+shelfHue(i,t).toFixed(0);
+          ln.style.cssText='--x:'+((.55+t*sp)/w*100).toFixed(1)+';--a:'+(24-t*10).toFixed(1)+'deg;--h:'+(5.4-t*.4+((j*7)%3)*.12).toFixed(2)+'em;--j:'+j+';--hue:'+shelfHue(i,t).toFixed(0);
           if(isFile(f)){ln.classList.add('kf');ln.style.setProperty('--kc',KIND[kindOf(f)].c)}else if(isBlank(f))ln.classList.add('bl');
         }
         el('',el('tb',mt,'i'),'span').textContent=nm;
         const tg=el('gtag',g,'span');tg.textContent=nm;el('',tg,'small').textContent=cnt+(cnt===1?' file':' files');
       }
     }
+    const mb=el('smore',lvs[L-1],'button');mb.type='button';mb.hidden=true;mb.textContent='+';el('gtag',mb,'span');
   });
   fitShelves();buildRecent();
 }
+let fwC=null;
+function folderW(nm){ // folder width (in folder units) that fits its name
+  if(!fwC){fwC=document.createElement('canvas').getContext('2d');const t=document.createElement('i');t.className='tb';units.appendChild(t);fwC.font='600 100px '+(getComputedStyle(t).fontFamily||'system-ui,sans-serif');t.remove()}
+  return +Math.max(5.2,1.15*(fwC.measureText(nm).width/100+1.6)).toFixed(2);
+}
+function packUnit(u,ts){
+  const lvs=[...u.querySelectorAll('.lvl')],gs=[...u.querySelectorAll('.grp')].sort((x,y)=>x.dataset.k-y.dataset.k),mb=u.querySelector('.smore'),full=21.3/ts,gap=1.3,bw=2.4+1.3;
+  const run=last=>{let r=0,x=0;const pos=[];for(const g of gs){const w=Math.min(+g.dataset.w,full);let room=r===lvs.length-1?last:full;
+    if(x>0&&x+w>room){r++;x=0;room=r===lvs.length-1?last:full}
+    if(r>=lvs.length||w>room){pos.push(null);r=lvs.length;continue}
+    pos.push([r,x,w]);x+=w+gap}return pos};
+  let pos=run(full);const over=pos.some(p=>!p);if(over)pos=run(full-bw);
+  gs.forEach((g,n)=>{const p=pos[n];g.hidden=!p;if(!p)return;if(g.parentNode!==lvs[p[0]])lvs[p[0]].appendChild(g);g.style.setProperty('--sx',p[1].toFixed(2));g.style.setProperty('--w',p[2])});
+  const hid=gs.filter(g=>g.hidden);mb.hidden=!hid.length;lvs[lvs.length-1].appendChild(mb);
+  if(hid.length){mb.dataset.k=hid[0].dataset.k;const t=hid.length+(hid.length===1?' more folder':' more folders');mb.querySelector('.gtag').textContent=t;mb.setAttribute('aria-label',t+' on '+(shelves[+u.dataset.i].name||'this shelf')+'. Open the shelf to see them.')}
+}
+const gFor=(u,k)=>u&&(u.querySelector('.grp[data-k="'+k+'"]:not([hidden])')||u.querySelector('.smore:not([hidden])')||u.querySelector('.case'));
 function fitShelves(){
   const W=stage.clientWidth,H=stage.clientHeight,N=shelves.length;
   const A=Math.max(220,H*.68-60);
@@ -2178,7 +2202,7 @@ function fitShelves(){
   const ch=Math.min(42,Math.max(34,A/fs-5));
   shv.style.setProperty('--ft',(60+(5+ch)*fs).toFixed(0)+'px');
   placeRecent();
-  units.querySelectorAll('.unit').forEach(u=>{u.querySelector('.case').style.setProperty('--ch',ch.toFixed(1)+'em');const L=+u.dataset.L||4,lh=(ch-8.4)/L;u.style.setProperty('--ts',Math.min(1.05,(lh-1.9)/7.4).toFixed(3)+'em')});
+  units.querySelectorAll('.unit').forEach(u=>{u.querySelector('.case').style.setProperty('--ch',ch.toFixed(1)+'em');const L=+u.dataset.L||4,lh=(ch-8.4)/L,ts=+Math.min(1.05,(lh-1.9)/7.4).toFixed(3);u.style.setProperty('--ts',ts+'em');packUnit(u,ts)});
 }
 addEventListener('resize',()=>{if(!shv.hidden)fitShelves()});
 function setCrumb(){crumb.querySelector('.cs').textContent=shelves[shelf].name||'Shelf'}
@@ -2195,7 +2219,7 @@ function showShelves(instant){
   cancelShAnims();cancelTrAnims();clearTimeout(smT);
   if(instant||REDUCE){stage.classList.add('shelfmode');return}
   smT=setTimeout(()=>{if(state==='shelves')stage.classList.add('shelfmode')},580);
-  const u=units.querySelector('.unit[data-i="'+shelf+'"]'),g=u&&(u.querySelector('.grp[data-k="'+Math.min(tr,7)+'"]')||u.querySelector('.case'));
+  const u=units.querySelector('.unit[data-i="'+shelf+'"]'),g=gFor(u,tr);
   if(units.classList.contains('scroll')&&u)units.scrollLeft=u.offsetLeft-(units.clientWidth-u.offsetWidth)/2;
   const [ox,oy]=g?relC(g.getBoundingClientRect()):[stage.clientWidth/2,stage.clientHeight/2],cx=stage.clientWidth/2,cy=stage.clientHeight/2;
   units.style.transformOrigin=(ox+units.scrollLeft)+'px '+(oy-units.offsetTop)+'px';
@@ -2233,12 +2257,12 @@ function openShelf(i,k,from){
 }
 units.addEventListener('click',e=>{
   if(state!=='shelves'||lpFired){lpFired=false;return}
-  const u=e.target.closest('.unit');if(!u)return;const i=+u.dataset.i,g=e.target.closest('.grp');
+  const u=e.target.closest('.unit');if(!u)return;const i=+u.dataset.i,g=e.target.closest('.grp,.smore');
   if(g)openShelf(i,+g.dataset.k,g);
-  else{const k=lastFolder[shelves[i].id]||0;openShelf(i,k,u.querySelector('.grp[data-k="'+Math.min(k,7)+'"]')||u.querySelector('.case'))}
+  else{const k=lastFolder[shelves[i].id]||0;openShelf(i,k,gFor(u,k))}
 });
 let hovG=null;
-units.addEventListener('pointerover',e=>{const g=e.target.closest('.grp');if(g&&g!==hovG&&state==='shelves'&&e.pointerType==='mouse')flip(.35);hovG=g});
+units.addEventListener('pointerover',e=>{const g=e.target.closest('.grp,.smore');if(g&&g!==hovG&&state==='shelves'&&e.pointerType==='mouse')flip(.35);hovG=g});
 function renameShelf(i){
   const u=units.querySelector('.unit[data-i="'+i+'"]');if(!u)return;
   const b=u.querySelector('.sname'),inp=document.createElement('input');inp.className='sname';inp.maxLength=28;inp.value=shelves[i].name;inp.setAttribute('aria-label','Shelf name');inp.spellcheck=false;
@@ -2268,11 +2292,11 @@ function shelfKey(e){
   if(k==='F2'&&u){e.preventDefault();renameShelf(+u.dataset.i);return}
   if(k==='ContextMenu'||(k==='F10'&&e.shiftKey)){if(u){e.preventDefault();const r=u.getBoundingClientRect();shelfMenu(+u.dataset.i,r.left+r.width/2,r.top+40)}return}
   if(!/^Arrow/.test(k))return;e.preventDefault();
-  const gs=[...units.querySelectorAll('.grp')];if(!gs.length)return;
+  const GS='.grp:not([hidden]),.smore:not([hidden])',gs=[...units.querySelectorAll(GS)];if(!gs.length)return;
   if(!u){gs[0].focus();return}
-  const i=+u.dataset.i,g=ae.closest('.grp'),r=g?+g.dataset.k:0;
-  if(k==='ArrowDown'||k==='ArrowUp'){const all=[...u.querySelectorAll('.grp')];const j=Math.max(0,Math.min(all.length-1,all.indexOf(g)+(k==='ArrowDown'?1:-1)));(all[j]||all[0]).focus();return}
-  const ni=Math.max(0,Math.min(shelves.length-1,i+(k==='ArrowRight'?1:-1))),nu=units.querySelector('.unit[data-i="'+ni+'"]'),ng=nu.querySelectorAll('.grp');
+  const i=+u.dataset.i,g=ae.closest('.grp,.smore'),r=g?[...u.querySelectorAll(GS)].indexOf(g):0;
+  if(k==='ArrowDown'||k==='ArrowUp'){const all=[...u.querySelectorAll(GS)];const j=Math.max(0,Math.min(all.length-1,all.indexOf(g)+(k==='ArrowDown'?1:-1)));(all[j]||all[0]).focus();return}
+  const ni=Math.max(0,Math.min(shelves.length-1,i+(k==='ArrowRight'?1:-1))),nu=units.querySelector('.unit[data-i="'+ni+'"]'),ng=nu.querySelectorAll(GS);
   const t=ng[Math.min(r,ng.length-1)];if(t){t.focus();t.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'})}
 }
 crumb.addEventListener('click',()=>showShelves(false));
