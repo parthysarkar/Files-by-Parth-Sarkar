@@ -2154,8 +2154,7 @@ function buildShelves(){
     for(let k=0;k<T;k++){{
         const lv=lvs[0];
         const g=el('grp',lv,'button');g.type='button';g.dataset.k=k;
-        const cnt=D.sizes[k],nm=D.names[k]||'Folder '+(k+1),s0=starts[k],w=folderW(nm);g.dataset.w=w;
-        const sp=Math.min(Math.max(.4,w-3.3),(5*cnt+6)*.115);
+        const cnt=D.sizes[k],nm=D.names[k]||'Folder '+(k+1),s0=starts[k],sp=cnt>1?Math.min(70,5*cnt+6)*.116:0,w=Math.max(folderW(nm),+(sp+2.6).toFixed(2));g.dataset.w=w; // lines keep an even gap; folder widens for them
         g.setAttribute('aria-label',nm+', '+cnt+(cnt===1?' file':' files')+', on '+s.name);
         const mt=el('mt',g,'span');
         for(let j=0;j<cnt;j++){
